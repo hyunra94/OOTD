@@ -1,0 +1,828 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Paper Closet</title>
+  <style>
+    :root {
+      --bg:#fdf8ef;
+      --paper:#fffdf8;
+      --ink:#3b302a;
+      --muted:#92877c;
+      --line:#eadfce;
+      --pink:#f7c9d4;
+      --blue:#cce2f7;
+      --green:#d7ead1;
+      --yellow:#f5e3a6;
+      --coral:#f5b9ad;
+      --shadow:0 12px 30px rgba(90,63,38,.08);
+      --radius:24px;
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      min-height:100vh;
+      background:
+        radial-gradient(circle at 10% 10%,rgba(247,201,212,.35),transparent 25%),
+        radial-gradient(circle at 92% 18%,rgba(204,226,247,.42),transparent 25%),
+        var(--bg);
+      color:var(--ink);
+      font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    }
+    button,input,select,textarea{font:inherit}
+    button{border:0;cursor:pointer;color:inherit}
+    .app{width:min(440px,100%);margin:0 auto;min-height:100vh;padding:18px 16px 96px}
+    .top{
+      position:sticky;top:0;z-index:20;margin:-18px -16px 14px;padding:18px 16px 12px;
+      background:linear-gradient(to bottom,rgba(253,248,239,.98),rgba(253,248,239,.76));
+      backdrop-filter:blur(14px);
+    }
+    .brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    h1{margin:0;font-size:28px;letter-spacing:-.04em}
+    .sub{margin:6px 0 0;color:var(--muted);font-size:13px}
+    .top-actions{display:flex;gap:8px}
+    .icon-btn{width:40px;height:40px;border-radius:50%;background:var(--paper);box-shadow:var(--shadow)}
+    .search{margin-top:13px;width:100%;border:1px solid var(--line);background:rgba(255,253,248,.92);padding:12px 14px;border-radius:999px;outline:none}
+    .card{background:rgba(255,253,248,.93);border:1px solid rgba(234,223,206,.95);border-radius:var(--radius);box-shadow:var(--shadow)}
+    .section{margin:18px 0}
+    .section-title{display:flex;align-items:center;justify-content:space-between;margin:0 3px 10px}
+    .section-title h2{margin:0;font-size:18px;letter-spacing:-.03em}
+    .section-title small{color:var(--muted)}
+    .hero{padding:18px;display:grid;gap:14px}
+    .hero h2{margin:0;font-size:23px;letter-spacing:-.04em}
+    .hero p{margin:7px 0 0;color:var(--muted);font-size:14px;line-height:1.45}
+    .btn{border-radius:999px;padding:12px 15px;font-weight:800;background:var(--ink);color:white}
+    .btn.soft{background:var(--paper);color:var(--ink);border:1px solid var(--line)}
+    .btn.danger{background:var(--coral);color:var(--ink)}
+    .grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .stat{padding:14px 10px;text-align:center;border-radius:20px;background:var(--paper);border:1px dashed var(--line)}
+    .stat b{display:block;font-size:22px}
+    .stat span{display:block;margin-top:4px;color:var(--muted);font-size:12px}
+    .pill-row{display:flex;gap:8px;overflow-x:auto;padding:2px 1px 9px;scrollbar-width:none}
+    .pill-row::-webkit-scrollbar{display:none}
+    .pill{white-space:nowrap;padding:9px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+    .pill.active{background:var(--ink);border-color:var(--ink);color:white}
+    .closet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
+    .cloth{padding:10px;overflow:hidden}
+    .photo{aspect-ratio:1/1;border-radius:20px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:42px;margin-bottom:10px}
+    .photo img,.ootd-photo img,.mini-photo img{width:100%;height:100%;object-fit:cover}
+    .cloth b{display:block;font-size:15px;letter-spacing:-.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .meta{margin-top:4px;color:var(--muted);font-size:12px;line-height:1.35}
+    .status{display:inline-flex;margin-top:8px;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:800;background:#cfe8dc}
+    .status.need{background:var(--coral)}
+    .status.worn{background:var(--yellow)}
+    .list{display:grid;gap:10px}
+    .list-item{padding:12px;display:flex;align-items:center;gap:10px}
+    .mini-photo{width:48px;height:48px;border-radius:16px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:23px;flex:0 0 auto}
+    .grow{flex:1;min-width:0}
+    .grow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .grow span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
+    .ootd-card{padding:14px}
+    .ootd-photo{aspect-ratio:4/5;border-radius:22px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:44px;margin-bottom:12px}
+    .worn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
+    .worn{display:flex;align-items:center;gap:8px;padding:8px;border-radius:17px;border:1px solid var(--line);background:rgba(255,253,248,.8);min-width:0}
+    .worn .mini-photo{width:38px;height:38px;border-radius:13px;font-size:18px}
+    .bottom{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);width:min(440px,calc(100% - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px;background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:28px;box-shadow:0 14px 38px rgba(65,43,23,.16);backdrop-filter:blur(16px);z-index:50}
+    .nav{display:grid;gap:3px;place-items:center;padding:8px 0;border-radius:18px;background:transparent;color:var(--muted);font-size:11px}
+    .nav b{font-size:17px}
+    .nav.active{background:var(--ink);color:white}
+    .fab{position:fixed;right:max(18px,calc((100vw - 440px)/2 + 18px));bottom:86px;width:58px;height:58px;border-radius:50%;background:var(--ink);color:white;font-size:30px;box-shadow:0 14px 34px rgba(65,43,23,.22);z-index:40}
+    .modal{position:fixed;inset:0;background:rgba(52,38,25,.35);display:none;align-items:flex-end;justify-content:center;z-index:100}
+    .modal.show{display:flex}
+    .sheet{width:min(440px,100%);max-height:90vh;overflow:auto;background:var(--bg);border-radius:30px 30px 0 0;padding:18px 16px 24px;box-shadow:0 -20px 40px rgba(52,38,25,.18)}
+    .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+    .sheet h3{margin:0;font-size:20px}
+    .x{width:36px;height:36px;border-radius:50%;background:var(--paper);border:1px solid var(--line)}
+    .form{display:grid;gap:11px}
+    .field label{display:block;margin:0 0 6px 4px;color:var(--muted);font-size:12px;font-weight:800}
+    .field input,.field select,.field textarea{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:18px;padding:13px 14px;outline:none}
+    .field textarea{min-height:82px;resize:vertical}
+    .two{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+    .pick-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:9px;max-height:360px;overflow:auto;padding:2px}
+    .pick{position:relative}
+    .pick input{position:absolute;opacity:0;pointer-events:none}
+    .pick-inner{display:grid;gap:8px;padding:9px;border-radius:20px;background:var(--paper);border:1px solid var(--line);min-height:154px}
+    .pick-photo{aspect-ratio:1/.72;border-radius:16px;background:var(--blue);display:grid;place-items:center;font-size:34px;overflow:hidden}
+    .pick-photo img{width:100%;height:100%;object-fit:cover}
+    .pick-text b{display:block;font-size:13px;overflow:hidden;white-space:nowrap;text-overflow:ellipsis}
+    .pick-text small{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.35}
+    .pick input:checked + .pick-inner{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink);background:#fff8fb}
+    .pick input:checked + .pick-inner::after{content:"선택";position:absolute;top:12px;right:12px;background:var(--ink);color:white;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:800}
+    .empty{padding:25px 15px;text-align:center;color:var(--muted);line-height:1.55}
+    .toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:white;padding:12px 15px;border-radius:999px;font-size:13px;box-shadow:0 14px 30px rgba(65,43,23,.22);opacity:0;pointer-events:none;transition:.2s;z-index:200;max-width:calc(100% - 40px)}
+    .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+    .small{font-size:12px;color:var(--muted);line-height:1.45}
+  </style>
+</head>
+<body>
+  <main class="app">
+    <header class="top">
+      <div class="brand">
+        <div>
+          <h1>Paper Closet</h1>
+          <p class="sub" id="subtitle">GitHub Pages + Cloudflare Worker</p>
+        </div>
+        <div class="top-actions">
+          <button class="icon-btn" id="reloadBtn" title="새로고침">↻</button>
+          <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
+        </div>
+      </div>
+      <input class="search" id="searchInput" placeholder="옷 이름, 색상, 스타일 검색" />
+    </header>
+
+    <section id="view"></section>
+  </main>
+
+  <button class="fab" id="fabBtn">+</button>
+
+  <nav class="bottom">
+    <button class="nav active" data-tab="home"><b>⌂</b><span>Home</span></button>
+    <button class="nav" data-tab="closet"><b>▦</b><span>Closet</span></button>
+    <button class="nav" data-tab="ootd"><b>◷</b><span>OOTD</span></button>
+    <button class="nav" data-tab="laundry"><b>☼</b><span>Laundry</span></button>
+  </nav>
+
+  <div class="modal" id="modal">
+    <div class="sheet">
+      <div class="sheet-head">
+        <h3 id="modalTitle">설정</h3>
+        <button class="x" id="closeModal">✕</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    const STORAGE_KEY = "paper_closet_settings_v1";
+
+    const state = {
+      tab: "home",
+      filter: "전체",
+      query: "",
+      loading: false,
+      clothes: [],
+      ootds: [],
+      laundries: [],
+      settings: loadSettings(),
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+
+    function loadSettings() {
+      try {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || {};
+      } catch {
+        return {};
+      }
+    }
+
+    function saveSettings(settings) {
+      state.settings = settings;
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(settings));
+    }
+
+    function today() {
+      return new Date().toISOString().slice(0, 10);
+    }
+
+    function toast(message) {
+      const el = $("#toast");
+      el.textContent = message;
+      el.classList.add("show");
+      setTimeout(() => el.classList.remove("show"), 1800);
+    }
+
+    function hasConfig() {
+      return Boolean(state.settings.apiBase && state.settings.appToken);
+    }
+
+    async function api(path, options = {}) {
+      if (!hasConfig()) {
+        openSettings();
+        throw new Error("Worker API 주소와 APP_TOKEN을 먼저 입력해야 해.");
+      }
+
+      const isForm = options.body instanceof FormData;
+      const headers = {
+        "X-App-Token": state.settings.appToken,
+        ...(options.headers || {}),
+      };
+
+      if (!isForm) headers["Content-Type"] = "application/json";
+
+      const res = await fetch(state.settings.apiBase.replace(/\/$/, "") + path, {
+        method: options.method || "GET",
+        headers,
+        body: options.body ? (isForm ? options.body : JSON.stringify(options.body)) : undefined,
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || data?.ok === false) {
+        throw new Error(data?.error || `API 오류 ${res.status}`);
+      }
+
+      return data;
+    }
+
+    async function uploadImage(file, folder) {
+      if (!file) return { url: "", key: "" };
+      const form = new FormData();
+      form.append("file", file);
+      form.append("folder", folder);
+      const data = await api("/api/upload", { method: "POST", body: form });
+      return { url: data.url, key: data.key };
+    }
+
+    async function loadAll() {
+      if (!hasConfig()) {
+        openSettings();
+        return;
+      }
+
+      state.loading = true;
+      render();
+
+      try {
+        const [clothes, ootd, laundry] = await Promise.all([
+          api("/api/clothes"),
+          api("/api/ootd"),
+          api("/api/laundry"),
+        ]);
+        state.clothes = clothes.clothes || [];
+        state.ootds = ootd.ootds || [];
+        state.laundries = laundry.laundries || [];
+      } catch (error) {
+        toast(error.message);
+      } finally {
+        state.loading = false;
+        render();
+      }
+    }
+
+    function setTab(tab) {
+      state.tab = tab;
+      document.querySelectorAll(".nav").forEach((btn) => btn.classList.toggle("active", btn.dataset.tab === tab));
+      $("#subtitle").textContent = {
+        home: "오늘 요약",
+        closet: "내 옷장",
+        ootd: "착장 기록",
+        laundry: "세탁 관리",
+      }[tab];
+      render();
+    }
+
+    function filteredClothes() {
+      const q = state.query.toLowerCase().trim();
+      return state.clothes.filter((item) => {
+        const filterOK =
+          state.filter === "전체" ||
+          item.category === state.filter ||
+          item.status === state.filter;
+        const text = [
+          item.name,
+          item.category,
+          item.detail,
+          (item.colors || []).join(","),
+          (item.seasons || []).join(","),
+          (item.styles || []).join(","),
+          item.status,
+        ].join(" ").toLowerCase();
+        return filterOK && (!q || text.includes(q));
+      });
+    }
+
+    function needWash() {
+      return state.clothes.filter((item) => item.status === "세탁 필요" || Number(item.wearCount || 0) >= Number(item.washLimit || 999));
+    }
+
+    function photo(item, cls = "photo") {
+      const src = item.photoUrl || "";
+      return src
+        ? `<div class="${cls}"><img src="${escapeAttr(src)}" alt="${escapeAttr(item.name || "image")}"></div>`
+        : `<div class="${cls}">${escapeHtml(item.emoji || "👚")}</div>`;
+    }
+
+    function mini(item) {
+      return `
+        <div class="worn">
+          ${photo(item, "mini-photo")}
+          <div class="grow">
+            <b>${escapeHtml(item.name)}</b>
+            <span>${escapeHtml(item.category || "")} · ${(item.colors || []).map(escapeHtml).join(", ")}</span>
+          </div>
+        </div>
+      `;
+    }
+
+    function render() {
+      const view = $("#view");
+      if (!hasConfig()) {
+        view.innerHTML = `
+          <section class="hero card">
+            <h2>먼저 Worker 연결이 필요해</h2>
+            <p>Cloudflare Worker API 주소와 APP_TOKEN을 입력하면 Notion 옷장과 연결돼.</p>
+            <button class="btn" onclick="openSettings()">설정하기</button>
+          </section>
+        `;
+        return;
+      }
+
+      if (state.loading) {
+        view.innerHTML = `<div class="empty card">Notion에서 불러오는 중...</div>`;
+        return;
+      }
+
+      if (state.tab === "home") view.innerHTML = renderHome();
+      if (state.tab === "closet") view.innerHTML = renderCloset();
+      if (state.tab === "ootd") view.innerHTML = renderOOTD();
+      if (state.tab === "laundry") view.innerHTML = renderLaundry();
+
+      bindDynamic();
+    }
+
+    function renderHome() {
+      const wash = needWash();
+      const todayOOTD = state.ootds.find((x) => x.date === today());
+      const mostWorn = [...state.clothes].sort((a, b) => Number(b.totalWear || 0) - Number(a.totalWear || 0))[0];
+
+      return `
+        <section class="hero card">
+          <h2>${todayOOTD ? "오늘 착장 기록 완료" : "오늘 뭐 입었어?"}</h2>
+          <p>${todayOOTD ? "OOTD 탭에서 오늘 입은 옷과 착장 사진을 볼 수 있어." : "옷장에서 오늘 입은 옷을 사진으로 고르고 착장 기록을 남겨봐."}</p>
+          <button class="btn" data-open="ootd">OOTD 기록</button>
+          <div class="grid3">
+            <div class="stat"><b>${state.clothes.length}</b><span>등록 옷</span></div>
+            <div class="stat"><b>${state.ootds.length}</b><span>OOTD</span></div>
+            <div class="stat"><b>${wash.length}</b><span>세탁 필요</span></div>
+          </div>
+        </section>
+
+        <section class="section">
+          <div class="section-title"><h2>세탁 필요한 옷</h2><small>${wash.length}개</small></div>
+          <div class="list">${wash.length ? wash.slice(0, 5).map(laundryItem).join("") : `<div class="empty card">아직 세탁 필요한 옷이 없어.</div>`}</div>
+        </section>
+
+        <section class="section">
+          <div class="section-title"><h2>많이 입은 옷</h2></div>
+          ${mostWorn ? `<div class="list-item card">${photo(mostWorn, "mini-photo")}<div class="grow"><b>${escapeHtml(mostWorn.name)}</b><span>총 ${mostWorn.totalWear || 0}회 · 현재 ${mostWorn.wearCount || 0}회 착용</span></div></div>` : `<div class="empty card">등록된 옷이 없어.</div>`}
+        </section>
+      `;
+    }
+
+    function renderCloset() {
+      const categories = ["전체", "상의", "하의", "아우터", "원피스", "신발", "가방", "액세서리", "세탁 필요"];
+      const list = filteredClothes();
+
+      return `
+        <section class="section">
+          <div class="pill-row">
+            ${categories.map((cat) => `<button class="pill ${state.filter === cat ? "active" : ""}" data-filter="${cat}">${cat}</button>`).join("")}
+          </div>
+          <div class="closet-grid">
+            ${list.length ? list.map(clothCard).join("") : `<div class="empty card" style="grid-column:1/-1">조건에 맞는 옷이 없어.</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function clothCard(item) {
+      const statusClass = item.status === "세탁 필요" ? "need" : Number(item.wearCount || 0) > 0 ? "worn" : "";
+      return `
+        <article class="cloth card">
+          ${photo(item)}
+          <b>${escapeHtml(item.name)}</b>
+          <div class="meta">
+            ${escapeHtml(item.category || "")} · ${(item.colors || []).map(escapeHtml).join(", ") || "색상 없음"}<br>
+            ${item.wearCount || 0}회 착용 / 기준 ${item.washLimit || "-"}회
+          </div>
+          <span class="status ${statusClass}">${escapeHtml(item.status || "깨끗함")}</span>
+        </article>
+      `;
+    }
+
+    function renderOOTD() {
+      return `
+        <section class="section">
+          <div class="section-title"><h2>OOTD</h2><button class="btn soft" data-open="ootd">+ 기록</button></div>
+          <div class="list">
+            ${state.ootds.length ? state.ootds.map(ootdCard).join("") : `<div class="empty card">아직 OOTD 기록이 없어.</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function ootdCard(item) {
+      const clothes = item.clothes && item.clothes.length
+        ? item.clothes
+        : (item.clothIds || []).map((id) => state.clothes.find((c) => c.id === id)).filter(Boolean);
+      const mainPhoto = item.photoUrl
+        ? `<div class="ootd-photo"><img src="${escapeAttr(item.photoUrl)}" alt="OOTD"></div>`
+        : clothes.length
+          ? `<div class="worn-grid">${clothes.map(mini).join("")}</div>`
+          : `<div class="ootd-photo">👗</div>`;
+
+      return `
+        <article class="ootd-card card">
+          ${mainPhoto}
+          <b>${formatDate(item.date)} · ${escapeHtml(item.scene || "OOTD")}</b>
+          <div class="meta">만족도 ${item.rating || "-"}점 · ${escapeHtml(item.weather || "날씨 없음")}</div>
+          ${item.memo ? `<p class="small">${escapeHtml(item.memo)}</p>` : ""}
+          ${item.photoUrl && clothes.length ? `<div class="worn-grid">${clothes.map(mini).join("")}</div>` : ""}
+        </article>
+      `;
+    }
+
+    function renderLaundry() {
+      const wash = needWash();
+      return `
+        <section class="section">
+          <div class="section-title"><h2>세탁 필요</h2><button class="btn soft" data-open="laundry">+ 세탁</button></div>
+          <div class="list">${wash.length ? wash.map(laundryItem).join("") : `<div class="empty card">세탁 필요한 옷이 없어.</div>`}</div>
+        </section>
+
+        <section class="section">
+          <div class="section-title"><h2>최근 세탁 기록</h2></div>
+          <div class="list">
+            ${state.laundries.length ? state.laundries.slice(0, 10).map((item) => `
+              <div class="list-item card">
+                <div class="mini-photo">🫧</div>
+                <div class="grow"><b>${formatDate(item.date)} 세탁</b><span>${escapeHtml(item.method || "")} · ${item.beforeWearCount || 0}회 착용 후</span></div>
+              </div>
+            `).join("") : `<div class="empty card">아직 세탁 기록이 없어.</div>`}
+          </div>
+        </section>
+      `;
+    }
+
+    function laundryItem(item) {
+      return `
+        <div class="list-item card">
+          ${photo(item, "mini-photo")}
+          <div class="grow">
+            <b>${escapeHtml(item.name)}</b>
+            <span>${item.wearCount || 0}회 착용 · 기준 ${item.washLimit || "-"}회 · ${escapeHtml(item.status || "")}</span>
+          </div>
+          <button class="btn soft" data-wash-one="${item.id}">완료</button>
+        </div>
+      `;
+    }
+
+    function bindDynamic() {
+      document.querySelectorAll("[data-filter]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.filter = btn.dataset.filter;
+          render();
+        });
+      });
+
+      document.querySelectorAll("[data-open]").forEach((btn) => {
+        btn.addEventListener("click", () => openForm(btn.dataset.open));
+      });
+
+      document.querySelectorAll("[data-wash-one]").forEach((btn) => {
+        btn.addEventListener("click", () => quickWash(btn.dataset.washOne));
+      });
+    }
+
+    function openSettings() {
+      $("#modalTitle").textContent = "연결 설정";
+      $("#modalBody").innerHTML = `
+        <form class="form" id="settingsForm">
+          <div class="field">
+            <label>Cloudflare Worker API 주소</label>
+            <input name="apiBase" placeholder="https://paper-closet-api.계정명.workers.dev" value="${escapeAttr(state.settings.apiBase || "")}" required>
+          </div>
+          <div class="field">
+            <label>APP_TOKEN</label>
+            <input name="appToken" placeholder="Worker Secret에 넣은 APP_TOKEN" value="${escapeAttr(state.settings.appToken || "")}" required>
+          </div>
+          <p class="small">여기에는 Notion Token을 넣지 마. Notion Token은 Cloudflare Worker Secret에만 넣어야 해.</p>
+          <button class="btn" type="submit">저장하고 불러오기</button>
+          <button class="btn soft" type="button" id="schemaBtn">Notion 속성 체크</button>
+        </form>
+      `;
+      $("#modal").classList.add("show");
+
+      $("#settingsForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        saveSettings({
+          apiBase: String(fd.get("apiBase")).trim(),
+          appToken: String(fd.get("appToken")).trim(),
+        });
+        closeModal();
+        await loadAll();
+      });
+
+      $("#schemaBtn").addEventListener("click", async () => {
+        const fd = new FormData($("#settingsForm"));
+        saveSettings({
+          apiBase: String(fd.get("apiBase")).trim(),
+          appToken: String(fd.get("appToken")).trim(),
+        });
+
+        try {
+          const data = await api("/api/schema-check");
+          if (data.ok) toast("Notion 속성 구성이 맞아.");
+          else alert("누락 속성:\n" + JSON.stringify(data.result, null, 2));
+        } catch (error) {
+          alert(error.message);
+        }
+      });
+    }
+
+    function openForm(type) {
+      if (type === "cloth") return openClothForm();
+      if (type === "ootd") return openOOTDForm();
+      if (type === "laundry") return openLaundryForm();
+    }
+
+    function openClothForm() {
+      $("#modalTitle").textContent = "옷 등록";
+      $("#modalBody").innerHTML = `
+        <form class="form" id="clothForm">
+          <div class="field"><label>옷 이름</label><input name="name" placeholder="검정 니트" required></div>
+          <div class="two">
+            <div class="field">
+              <label>카테고리</label>
+              <select name="category">
+                <option>상의</option><option>하의</option><option>아우터</option><option>원피스</option>
+                <option>신발</option><option>가방</option><option>액세서리</option><option>기타</option>
+              </select>
+            </div>
+            <div class="field"><label>세부유형</label><input name="detail" placeholder="니트, 셔츠"></div>
+          </div>
+          <div class="two">
+            <div class="field"><label>색상</label><input name="colors" placeholder="검정, 아이보리"></div>
+            <div class="field"><label>계절</label><input name="seasons" placeholder="봄,가을"></div>
+          </div>
+          <div class="field"><label>스타일</label><input name="styles" placeholder="출근룩, 데일리"></div>
+          <div class="two">
+            <div class="field"><label>세탁 기준</label><input name="washLimit" type="number" min="1" value="1"></div>
+            <div class="field"><label>구매가</label><input name="price" type="number" min="0" placeholder="39000"></div>
+          </div>
+          <div class="field"><label>옷 사진 파일</label><input name="photoFile" type="file" accept="image/*"></div>
+          <div class="field"><label>사진 URL</label><input name="photoUrl" placeholder="파일 대신 URL 사용 가능"></div>
+          <div class="field"><label>이모지</label><input name="emoji" value="👚"></div>
+          <button class="btn" type="submit">저장</button>
+        </form>
+      `;
+      $("#modal").classList.add("show");
+
+      $("#clothForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const file = fd.get("photoFile");
+        let photoUrl = String(fd.get("photoUrl") || "").trim();
+        let r2Key = "";
+
+        try {
+          if (file && file.size) {
+            const uploaded = await uploadImage(file, "clothes");
+            photoUrl = uploaded.url;
+            r2Key = uploaded.key;
+          }
+
+          await api("/api/clothes", {
+            method: "POST",
+            body: {
+              name: fd.get("name"),
+              category: fd.get("category"),
+              detail: fd.get("detail"),
+              colors: fd.get("colors"),
+              seasons: fd.get("seasons"),
+              styles: fd.get("styles"),
+              washLimit: fd.get("washLimit"),
+              price: fd.get("price"),
+              photoUrl,
+              r2Key,
+              emoji: fd.get("emoji"),
+            },
+          });
+
+          closeModal();
+          toast("옷을 등록했어.");
+          await loadAll();
+          setTab("closet");
+        } catch (error) {
+          toast(error.message);
+        }
+      });
+    }
+
+    function openOOTDForm() {
+      $("#modalTitle").textContent = "OOTD 기록";
+      $("#modalBody").innerHTML = `
+        <form class="form" id="ootdForm">
+          <div class="field"><label>날짜</label><input name="date" type="date" value="${today()}" required></div>
+          <div class="field">
+            <label>오늘 입은 옷을 옷장에서 선택</label>
+            <div class="pick-grid">
+              ${state.clothes.map((item) => `
+                <label class="pick">
+                  <input type="checkbox" name="clothIds" value="${item.id}">
+                  <span class="pick-inner">
+                    <span class="pick-photo">${item.photoUrl ? `<img src="${escapeAttr(item.photoUrl)}" alt="${escapeAttr(item.name)}">` : escapeHtml(item.emoji || "👚")}</span>
+                    <span class="pick-text">
+                      <b>${escapeHtml(item.name)}</b>
+                      <small>${escapeHtml(item.category || "")} · ${(item.colors || []).map(escapeHtml).join(", ") || "색상 없음"}<br>${escapeHtml(item.status || "깨끗함")}</small>
+                    </span>
+                  </span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+          <div class="field"><label>착장 사진</label><input name="photoFile" type="file" accept="image/*"></div>
+          <div class="field"><label>착장 사진 URL</label><input name="photoUrl" placeholder="파일 대신 URL 사용 가능"></div>
+          <div class="two">
+            <div class="field">
+              <label>상황</label>
+              <select name="scene"><option>출근</option><option>교육장</option><option>외출</option><option>여행</option><option>데이트</option><option>집</option><option>기타</option></select>
+            </div>
+            <div class="field">
+              <label>만족도</label>
+              <select name="rating"><option value="5">5점</option><option value="4">4점</option><option value="3">3점</option><option value="2">2점</option><option value="1">1점</option></select>
+            </div>
+          </div>
+          <div class="two">
+            <div class="field"><label>날씨</label><input name="weather" placeholder="맑음, 비"></div>
+            <div class="field"><label>기온</label><input name="temperature" type="number" placeholder="23"></div>
+          </div>
+          <div class="field"><label>메모</label><textarea name="memo" placeholder="오늘 착장 느낌"></textarea></div>
+          <button class="btn" type="submit">OOTD 저장</button>
+        </form>
+      `;
+      $("#modal").classList.add("show");
+
+      $("#ootdForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const clothIds = fd.getAll("clothIds");
+
+        if (!clothIds.length) {
+          toast("입은 옷을 1개 이상 선택해줘.");
+          return;
+        }
+
+        const file = fd.get("photoFile");
+        let photoUrl = String(fd.get("photoUrl") || "").trim();
+        let r2Key = "";
+
+        try {
+          if (file && file.size) {
+            const uploaded = await uploadImage(file, "ootd");
+            photoUrl = uploaded.url;
+            r2Key = uploaded.key;
+          }
+
+          await api("/api/ootd", {
+            method: "POST",
+            body: {
+              date: fd.get("date"),
+              clothIds,
+              photoUrl,
+              r2Key,
+              scene: fd.get("scene"),
+              rating: fd.get("rating"),
+              weather: fd.get("weather"),
+              temperature: fd.get("temperature"),
+              memo: fd.get("memo"),
+            },
+          });
+
+          closeModal();
+          toast("OOTD를 기록했어.");
+          await loadAll();
+          setTab("ootd");
+        } catch (error) {
+          toast(error.message);
+        }
+      });
+    }
+
+    function openLaundryForm() {
+      $("#modalTitle").textContent = "세탁 기록";
+      $("#modalBody").innerHTML = `
+        <form class="form" id="laundryForm">
+          <div class="field"><label>날짜</label><input name="date" type="date" value="${today()}" required></div>
+          <div class="field">
+            <label>세탁한 옷 선택</label>
+            <div class="pick-grid">
+              ${state.clothes.map((item) => `
+                <label class="pick">
+                  <input type="checkbox" name="clothIds" value="${item.id}">
+                  <span class="pick-inner">
+                    <span class="pick-photo">${item.photoUrl ? `<img src="${escapeAttr(item.photoUrl)}" alt="${escapeAttr(item.name)}">` : escapeHtml(item.emoji || "👚")}</span>
+                    <span class="pick-text"><b>${escapeHtml(item.name)}</b><small>${item.wearCount || 0}회 착용 · ${escapeHtml(item.status || "")}</small></span>
+                  </span>
+                </label>
+              `).join("")}
+            </div>
+          </div>
+          <div class="field">
+            <label>세탁 방식</label>
+            <select name="method"><option>세탁기</option><option>손세탁</option><option>드라이</option><option>스타일러</option><option>부분세탁</option><option>기타</option></select>
+          </div>
+          <div class="field"><label>메모</label><textarea name="memo" placeholder="세탁망 사용, 단독세탁 등"></textarea></div>
+          <button class="btn" type="submit">세탁 완료 저장</button>
+        </form>
+      `;
+      $("#modal").classList.add("show");
+
+      $("#laundryForm").addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const fd = new FormData(e.target);
+        const clothIds = fd.getAll("clothIds");
+
+        if (!clothIds.length) {
+          toast("세탁한 옷을 1개 이상 선택해줘.");
+          return;
+        }
+
+        try {
+          await api("/api/laundry", {
+            method: "POST",
+            body: {
+              date: fd.get("date"),
+              clothIds,
+              method: fd.get("method"),
+              memo: fd.get("memo"),
+            },
+          });
+
+          closeModal();
+          toast("세탁 완료로 저장했어.");
+          await loadAll();
+          setTab("laundry");
+        } catch (error) {
+          toast(error.message);
+        }
+      });
+    }
+
+    async function quickWash(id) {
+      try {
+        await api("/api/laundry", {
+          method: "POST",
+          body: {
+            date: today(),
+            clothIds: [id],
+            method: "세탁기",
+            memo: "빠른 세탁 완료",
+          },
+        });
+        toast("세탁 완료로 바꿨어.");
+        await loadAll();
+      } catch (error) {
+        toast(error.message);
+      }
+    }
+
+    function closeModal() {
+      $("#modal").classList.remove("show");
+    }
+
+    function formatDate(date) {
+      return date ? String(date).replaceAll("-", ".") : "날짜 없음";
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    function escapeAttr(value) {
+      return escapeHtml(value);
+    }
+
+    $("#settingsBtn").addEventListener("click", openSettings);
+    $("#reloadBtn").addEventListener("click", loadAll);
+    $("#closeModal").addEventListener("click", closeModal);
+    $("#modal").addEventListener("click", (e) => { if (e.target.id === "modal") closeModal(); });
+    $("#fabBtn").addEventListener("click", () => {
+      if (state.tab === "ootd") openOOTDForm();
+      else if (state.tab === "laundry") openLaundryForm();
+      else openClothForm();
+    });
+    $("#searchInput").addEventListener("input", (e) => {
+      state.query = e.target.value;
+      if (state.tab !== "closet") setTab("closet");
+      else render();
+    });
+    document.querySelectorAll(".nav").forEach((btn) => {
+      btn.addEventListener("click", () => setTab(btn.dataset.tab));
+    });
+
+    render();
+    if (hasConfig()) loadAll();
+  </script>
+</body>
+</html>
