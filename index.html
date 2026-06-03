@@ -4,6 +4,13 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Paper Closet</title>
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <meta name="theme-color" content="#fdf8ef" />
+  <meta name="application-name" content="Paper Closet" />
+  <meta name="apple-mobile-web-app-title" content="Paper Closet" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <link rel="apple-touch-icon" href="./icons/icon-192.png" />
   <style>
     :root {
       --bg:#fdf8ef;
@@ -124,6 +131,7 @@
           <p class="sub" id="subtitle">GitHub Pages + Cloudflare Worker</p>
         </div>
         <div class="top-actions">
+          <button class="icon-btn" id="installBtn" title="앱 설치">⇩</button>
           <button class="icon-btn" id="reloadBtn" title="새로고침">↻</button>
           <button class="icon-btn" id="settingsBtn" title="설정">⚙</button>
         </div>
@@ -170,6 +178,76 @@
     };
 
     const $ = (selector) => document.querySelector(selector);
+
+
+    let deferredInstallPrompt = null;
+
+    function isStandaloneMode() {
+      return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
+    }
+
+    function updateInstallButton() {
+      const btn = $("#installBtn");
+      if (!btn) return;
+      btn.style.display = isStandaloneMode() ? "none" : "inline-grid";
+    }
+
+    function openInstallGuide() {
+      $("#modalTitle").textContent = "앱 설치";
+      $("#modalBody").innerHTML = `
+        <div class="form">
+          <div class="card" style="padding:16px; line-height:1.65;">
+            <b>설치 버튼이 안 뜨는 경우</b><br>
+            Chrome/Edge Android에서는 주소창 또는 메뉴에서 <b>앱 설치</b>를 눌러줘.<br><br>
+            iPhone Safari에서는 공유 버튼을 누른 뒤 <b>홈 화면에 추가</b>를 선택하면 돼.
+          </div>
+          <button class="btn" id="closeInstallGuide" type="button">확인</button>
+        </div>
+      `;
+      $("#modal").classList.add("show");
+      $("#closeInstallGuide").addEventListener("click", closeModal);
+    }
+
+    async function installPWA() {
+      if (deferredInstallPrompt) {
+        deferredInstallPrompt.prompt();
+        await deferredInstallPrompt.userChoice.catch(() => null);
+        deferredInstallPrompt = null;
+        updateInstallButton();
+        return;
+      }
+
+      openInstallGuide();
+    }
+
+    async function registerServiceWorker() {
+      if (!("serviceWorker" in navigator)) return;
+
+      try {
+        const registration = await navigator.serviceWorker.register("./service-worker.js", {
+          scope: "./",
+        });
+
+        if (registration.waiting) {
+          registration.waiting.postMessage({ type: "SKIP_WAITING" });
+        }
+      } catch (error) {
+        console.warn("Service worker registration failed:", error);
+      }
+    }
+
+    window.addEventListener("beforeinstallprompt", (event) => {
+      event.preventDefault();
+      deferredInstallPrompt = event;
+      updateInstallButton();
+    });
+
+    window.addEventListener("appinstalled", () => {
+      deferredInstallPrompt = null;
+      updateInstallButton();
+      toast("앱 설치가 완료됐어.");
+    });
+
 
     function loadSettings() {
       try {
@@ -803,6 +881,7 @@
       return escapeHtml(value);
     }
 
+    $("#installBtn").addEventListener("click", installPWA);
     $("#settingsBtn").addEventListener("click", openSettings);
     $("#reloadBtn").addEventListener("click", loadAll);
     $("#closeModal").addEventListener("click", closeModal);
@@ -821,6 +900,8 @@
       btn.addEventListener("click", () => setTab(btn.dataset.tab));
     });
 
+    updateInstallButton();
+    registerServiceWorker();
     render();
     if (hasConfig()) loadAll();
   </script>
