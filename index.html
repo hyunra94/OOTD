@@ -27,6 +27,7 @@
       --radius:24px;
     }
     *{box-sizing:border-box}
+    html, body{width:100%;max-width:100%;overflow-x:hidden;overscroll-behavior-x:none;}
     body{
       margin:0;
       min-height:100vh;
@@ -39,20 +40,21 @@
     }
     button,input,select,textarea{font:inherit}
     button{border:0;cursor:pointer;color:inherit}
-    .app{width:min(440px,100%);margin:0 auto;min-height:100vh;padding:18px 16px 96px}
+    .app{width:100%;max-width:440px;margin:0 auto;min-height:100vh;padding:18px 16px 96px;overflow-x:hidden;position:relative}
     .top{
       position:sticky;top:0;z-index:20;margin:-18px -16px 14px;padding:18px 16px 12px;
       background:linear-gradient(to bottom,rgba(253,248,239,.98),rgba(253,248,239,.76));
       backdrop-filter:blur(14px);
     }
-    .brand{display:flex;align-items:center;justify-content:space-between;gap:12px}
+    .brand{display:flex;align-items:center;justify-content:space-between;gap:12px;min-width:0}
+    .brand>div:first-child{min-width:0}
     h1{margin:0;font-size:28px;letter-spacing:-.04em}
     .sub{margin:6px 0 0;color:var(--muted);font-size:13px}
-    .top-actions{display:flex;gap:8px}
+    .top-actions{display:flex;gap:8px;flex:0 0 auto}
     .icon-btn{width:40px;height:40px;border-radius:50%;background:var(--paper);box-shadow:var(--shadow)}
     .search{margin-top:13px;width:100%;border:1px solid var(--line);background:rgba(255,253,248,.92);padding:12px 14px;border-radius:999px;outline:none}
     .card{background:rgba(255,253,248,.93);border:1px solid rgba(234,223,206,.95);border-radius:var(--radius);box-shadow:var(--shadow)}
-    .section{margin:18px 0}
+    .section{margin:18px 0;min-width:0;max-width:100%}
     .section-title{display:flex;align-items:center;justify-content:space-between;margin:0 3px 10px}
     .section-title h2{margin:0;font-size:18px;letter-spacing:-.03em}
     .section-title small{color:var(--muted)}
@@ -66,11 +68,12 @@
     .stat{padding:14px 10px;text-align:center;border-radius:20px;background:var(--paper);border:1px dashed var(--line)}
     .stat b{display:block;font-size:22px}
     .stat span{display:block;margin-top:4px;color:var(--muted);font-size:12px}
-    .pill-row{display:flex;gap:8px;overflow-x:auto;padding:2px 1px 9px;scrollbar-width:none}
+    .pill-row{display:flex;gap:8px;width:100%;max-width:100%;min-width:0;overflow-x:auto;overflow-y:hidden;padding:2px 1px 9px;scrollbar-width:none;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
     .pill-row::-webkit-scrollbar{display:none}
-    .pill{white-space:nowrap;padding:9px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:13px;color:var(--muted)}
+    .pill{flex:0 0 auto;white-space:nowrap;padding:9px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:13px;color:var(--muted)}
     .pill.active{background:var(--ink);border-color:var(--ink);color:white}
-    .filter-panel{padding:13px;display:grid;gap:12px;margin-bottom:12px}
+    .filter-panel{padding:13px;display:grid;gap:12px;margin-bottom:12px;width:100%;max-width:100%;min-width:0;overflow:hidden}
+    .filter-panel>div{min-width:0;max-width:100%;overflow:hidden}
     .filter-label{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px;color:var(--muted);font-size:12px;font-weight:900}
     .filter-label b{color:var(--ink);font-size:13px}
     .filter-selects{display:grid;grid-template-columns:1fr 1fr;gap:9px}
@@ -79,8 +82,8 @@
     .filter-reset{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper);font-size:12px;color:var(--muted);font-weight:800}
     .color-pill span{display:inline-flex;align-items:center;gap:6px}
     .color-mini{width:12px;height:12px;border-radius:50%;border:1px solid rgba(59,48,42,.18);display:inline-block;background:linear-gradient(135deg,#fff,#ddd)}
-    .closet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
-    .cloth{padding:10px;overflow:hidden}
+    .closet-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;width:100%;max-width:100%;min-width:0}
+    .cloth{padding:10px;overflow:hidden;min-width:0}
     .photo{aspect-ratio:1/1;border-radius:20px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:42px;margin-bottom:10px}
     .photo img,.ootd-photo img,.mini-photo img{width:100%;height:100%;object-fit:cover}
     .cloth b{display:block;font-size:15px;letter-spacing:-.03em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
@@ -88,25 +91,28 @@
     .status{display:inline-flex;margin-top:8px;padding:6px 9px;border-radius:999px;font-size:11px;font-weight:800;background:#cfe8dc}
     .status.need{background:var(--coral)}
     .status.worn{background:var(--yellow)}
-    .list{display:grid;gap:10px}
+    .list{display:grid;gap:10px;min-width:0;max-width:100%}
     .list-item{padding:12px;display:flex;align-items:center;gap:10px}
     .mini-photo{width:48px;height:48px;border-radius:16px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:23px;flex:0 0 auto}
     .grow{flex:1;min-width:0}
     .grow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .grow span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
-    .ootd-card{padding:14px;position:relative}
+    .ootd-card{padding:14px;position:relative;touch-action:manipulation}
     .ootd-photo{aspect-ratio:4/5;border-radius:22px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:44px;margin-bottom:12px}
     .worn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
     .worn{display:flex;align-items:center;gap:8px;padding:8px;border-radius:17px;border:1px solid var(--line);background:rgba(255,253,248,.8);min-width:0}
     .worn .mini-photo{width:38px;height:38px;border-radius:13px;font-size:18px}
-    .bottom{position:fixed;left:50%;bottom:10px;transform:translateX(-50%);width:min(440px,calc(100% - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px;background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:28px;box-shadow:0 14px 38px rgba(65,43,23,.16);backdrop-filter:blur(16px);z-index:50}
+    .bottom{position:fixed;left:50%;bottom:calc(10px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(440px,calc(100% - 20px));display:grid;grid-template-columns:repeat(4,1fr);gap:4px;padding:8px 10px;background:rgba(255,253,248,.94);border:1px solid var(--line);border-radius:28px;box-shadow:0 14px 38px rgba(65,43,23,.16);backdrop-filter:blur(16px);z-index:80}
     .nav{display:grid;gap:3px;place-items:center;padding:8px 0;border-radius:18px;background:transparent;color:var(--muted);font-size:11px}
     .nav b{font-size:17px}
     .nav.active{background:var(--ink);color:white}
-    .fab{position:fixed;right:max(18px,calc((100vw - 440px)/2 + 18px));bottom:86px;width:58px;height:58px;border-radius:50%;background:var(--ink);color:white;font-size:30px;box-shadow:0 14px 34px rgba(65,43,23,.22);z-index:40}
+    .fab{position:fixed;right:18px;bottom:calc(86px + env(safe-area-inset-bottom,0px));width:58px;height:58px;border-radius:50%;background:var(--ink);color:white;font-size:30px;line-height:1;box-shadow:0 14px 34px rgba(65,43,23,.22);z-index:95;display:grid;place-items:center}
+    @media (min-width:480px){.fab{right:calc((100vw - 440px)/2 + 18px)}}
+    .closet-head{align-items:center}
+    .closet-head .btn{padding:10px 13px;font-size:13px;box-shadow:0 8px 18px rgba(65,43,23,.08)}
     .modal{position:fixed;inset:0;background:rgba(52,38,25,.35);display:none;align-items:flex-end;justify-content:center;z-index:100}
     .modal.show{display:flex}
-    .sheet{width:min(440px,100%);max-height:90vh;overflow:auto;background:var(--bg);border-radius:30px 30px 0 0;padding:18px 16px 24px;box-shadow:0 -20px 40px rgba(52,38,25,.18)}
+    .sheet{width:100%;max-width:440px;max-height:90vh;overflow-x:hidden;overflow-y:auto;background:var(--bg);border-radius:30px 30px 0 0;padding:18px 16px 24px;box-shadow:0 -20px 40px rgba(52,38,25,.18)}
     .sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
     .sheet h3{margin:0;font-size:20px}
     .x{width:36px;height:36px;border-radius:50%;background:var(--paper);border:1px solid var(--line)}
@@ -126,10 +132,10 @@
     .pick input:checked + .pick-inner{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink);background:#fff8fb}
     .pick input:checked + .pick-inner::after{content:"선택";position:absolute;top:12px;right:12px;background:var(--ink);color:white;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:800}
 
-    .cloth{cursor:pointer;transition:.16s ease;position:relative}
+    .cloth{cursor:pointer;transition:.16s ease;position:relative;touch-action:manipulation}
     .cloth:active{transform:scale(.98)}
     .cloth-top{position:relative}
-    .edit-badge{position:absolute;top:8px;right:8px;border-radius:999px;padding:6px 8px;background:rgba(255,253,248,.92);border:1px solid var(--line);font-size:11px;font-weight:900;box-shadow:0 8px 18px rgba(65,43,23,.12)}
+    .edit-badge{position:absolute;top:8px;right:8px;z-index:6;border-radius:999px;padding:8px 10px;background:rgba(255,253,248,.96);border:1px solid var(--line);font-size:12px;font-weight:900;box-shadow:0 8px 18px rgba(65,43,23,.12);pointer-events:auto;touch-action:manipulation}
     .color-dots{display:flex;gap:4px;align-items:center;margin-top:7px;min-height:14px}
     .dot{width:13px;height:13px;border-radius:50%;border:1px solid rgba(59,48,42,.22);display:inline-block;box-shadow:inset 0 0 0 1px rgba(255,255,255,.35)}
     .form-intro{display:flex;gap:12px;align-items:center;padding:14px;border-radius:24px;background:linear-gradient(135deg,rgba(255,253,248,.96),rgba(247,201,212,.22));border:1px solid var(--line);box-shadow:var(--shadow)}
@@ -169,6 +175,12 @@
     .toast{position:fixed;left:50%;bottom:88px;transform:translateX(-50%) translateY(20px);background:var(--ink);color:white;padding:12px 15px;border-radius:999px;font-size:13px;box-shadow:0 14px 30px rgba(65,43,23,.22);opacity:0;pointer-events:none;transition:.2s;z-index:200;max-width:calc(100% - 40px)}
     .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
     .small{font-size:12px;color:var(--muted);line-height:1.45}
+
+    @media (max-width:360px){
+      .filter-selects{grid-template-columns:1fr}
+      .closet-grid{grid-template-columns:1fr 1fr;gap:10px}
+      .pill{padding:8px 11px;font-size:12px}
+    }
   </style>
 </head>
 <body>
@@ -191,7 +203,7 @@
     <section id="view"></section>
   </main>
 
-  <button class="fab" id="fabBtn">+</button>
+  <button class="fab" id="fabBtn" aria-label="추가">+</button>
 
   <nav class="bottom">
     <button class="nav active" data-tab="home"><b>⌂</b><span>Home</span></button>
@@ -296,9 +308,11 @@
       if (!("serviceWorker" in navigator)) return;
 
       try {
-        const registration = await navigator.serviceWorker.register("./service-worker.js", {
+        const registration = await navigator.serviceWorker.register("./service-worker.js?v=7-click-edit-fix", {
           scope: "./",
+          updateViaCache: "none",
         });
+        registration.update();
 
         if (registration.waiting) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
@@ -554,6 +568,13 @@
       `;
     }
 
+
+    function resetHorizontalScroll() {
+      if (document.documentElement.scrollLeft) document.documentElement.scrollLeft = 0;
+      if (document.body.scrollLeft) document.body.scrollLeft = 0;
+      if (window.scrollX) window.scrollTo(0, window.scrollY);
+    }
+
     function render() {
       const view = $("#view");
       if (!hasConfig()) {
@@ -578,6 +599,7 @@
       if (state.tab === "laundry") view.innerHTML = renderLaundry();
 
       bindDynamic();
+      requestAnimationFrame(resetHorizontalScroll);
     }
 
     function renderHome() {
@@ -617,6 +639,11 @@
 
       return `
         <section class="section">
+          <div class="section-title closet-head">
+            <h2>Closet</h2>
+            <button class="btn soft" data-open="cloth" type="button">+ 옷 추가</button>
+          </div>
+
           <div class="filter-panel card">
             <div>
               <div class="filter-label"><b>종류</b><span>${state.filter}</span></div>
@@ -1508,6 +1535,52 @@
       return escapeHtml(value);
     }
 
+
+    function handleDelegatedActionClick(event) {
+      const target = event.target;
+
+      const editClothBtn = target.closest?.("[data-edit-cloth]");
+      if (editClothBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        openEditClothForm(editClothBtn.dataset.editCloth);
+        return;
+      }
+
+      const editOotdBtn = target.closest?.("[data-edit-ootd]");
+      if (editOotdBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        openEditOOTDForm(editOotdBtn.dataset.editOotd);
+        return;
+      }
+
+      const openBtn = target.closest?.("[data-open]");
+      if (openBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        openForm(openBtn.dataset.open);
+        return;
+      }
+
+      const washBtn = target.closest?.("[data-wash-one]");
+      if (washBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        quickWash(washBtn.dataset.washOne);
+        return;
+      }
+
+      const clothCard = target.closest?.("[data-cloth-id]");
+      if (clothCard) {
+        event.preventDefault();
+        event.stopPropagation();
+        openClothDetail(clothCard.dataset.clothId);
+      }
+    }
+
+    document.addEventListener("click", handleDelegatedActionClick, true);
+
     $("#installBtn").addEventListener("click", installPWA);
     $("#settingsBtn").addEventListener("click", openSettings);
     $("#reloadBtn").addEventListener("click", loadAll);
@@ -1530,6 +1603,9 @@
     updateInstallButton();
     registerServiceWorker();
     render();
+    window.addEventListener("resize", () => requestAnimationFrame(resetHorizontalScroll));
+    window.addEventListener("orientationchange", () => setTimeout(resetHorizontalScroll, 150));
+
     if (hasConfig()) loadAll();
   </script>
 </body>
