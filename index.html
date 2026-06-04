@@ -85,7 +85,7 @@
     .grow{flex:1;min-width:0}
     .grow b{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
     .grow span{display:block;margin-top:3px;color:var(--muted);font-size:12px}
-    .ootd-card{padding:14px}
+    .ootd-card{padding:14px;position:relative}
     .ootd-photo{aspect-ratio:4/5;border-radius:22px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:44px;margin-bottom:12px}
     .worn-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-top:10px}
     .worn{display:flex;align-items:center;gap:8px;padding:8px;border-radius:17px;border:1px solid var(--line);background:rgba(255,253,248,.8);min-width:0}
@@ -228,8 +228,14 @@
       { name:"빨강", hex:"#c84b45" }, { name:"노랑", hex:"#eacb55" }, { name:"보라", hex:"#9272c9" }
     ];
     const COLOR_MAP = Object.fromEntries(COLOR_PRESETS.map((item) => [item.name, item.hex]));
+    const EXTRA_COLOR_HEX = {
+      "민트":"#9ed8c1", "버건디":"#7d2735", "와인":"#8a2d3b", "차콜":"#4b4b4b", "크림":"#fff4d7",
+      "오트밀":"#d9c8ad", "라벤더":"#c8b6e8", "하늘":"#a9d6f5", "소라":"#9ecbea", "라이트블루":"#a8d3f0",
+      "올리브":"#80865a", "실버":"#c8c8c8", "골드":"#d7b45f", "데님":"#6f93bf"
+    };
     const SEASON_PRESETS = ["봄", "여름", "가을", "겨울", "간절기"];
     const STYLE_PRESETS = ["출근룩", "교육장", "데일리", "꾸안꾸", "격식", "여행", "운동", "홈웨어", "데이트"];
+    const SCENE_OPTIONS = ["출근", "교육장", "외출", "여행", "데이트", "집", "운동", "경조사", "기타"];
     const CATEGORY_OPTIONS = ["상의", "하의", "아우터", "원피스", "신발", "가방", "액세서리", "기타"];
     const DETAIL_OPTIONS = ["티셔츠", "셔츠", "블라우스", "니트", "가디건", "맨투맨", "후드", "청바지", "슬랙스", "스커트", "코트", "자켓", "패딩", "운동화", "구두", "가방"];
 
@@ -563,6 +569,7 @@
 
       return `
         <article class="ootd-card card">
+          <button class="edit-badge" data-edit-ootd="${item.id}" type="button">수정</button>
           ${mainPhoto}
           <b>${formatDate(item.date)} · ${escapeHtml(item.scene || "OOTD")}</b>
           <div class="meta">만족도 ${item.rating || "-"}점 · ${escapeHtml(item.weather || "날씨 없음")}</div>
@@ -633,6 +640,13 @@
           openEditClothForm(btn.dataset.editCloth);
         });
       });
+
+      document.querySelectorAll("[data-edit-ootd]").forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          openEditOOTDForm(btn.dataset.editOotd);
+        });
+      });
     }
 
     function openSettings() {
@@ -688,13 +702,35 @@
       if (type === "laundry") return openLaundryForm();
     }
 
+    function colorHex(name) {
+      return COLOR_MAP[name] || EXTRA_COLOR_HEX[name] || "";
+    }
+
+    function colorSwatchStyle(name) {
+      const hex = colorHex(name);
+      return hex ? `background:${hex};` : "background:linear-gradient(135deg,#fff,#ddd);";
+    }
+
+    function currentColorOptions(selected = []) {
+      const seen = new Set();
+      const options = [];
+      const add = (name) => {
+        const clean = String(name || "").trim();
+        if (!clean || seen.has(clean)) return;
+        seen.add(clean);
+        options.push({ name: clean, hex: colorHex(clean) });
+      };
+
+      COLOR_PRESETS.forEach((option) => add(option.name));
+      Object.keys(EXTRA_COLOR_HEX).forEach(add);
+      state.clothes.forEach((cloth) => normalizeList(cloth.colors || []).forEach(add));
+      normalizeList(selected).forEach(add);
+      return options;
+    }
+
     function colorDots(colors = []) {
       const dots = normalizeList(colors).slice(0, 5).map((name) => {
-        const hex = COLOR_MAP[name] || "transparent";
-        const style = hex === "transparent"
-          ? "background:linear-gradient(135deg,#fff,#ddd);"
-          : `background:${hex};`;
-        return `<span class="dot" title="${escapeAttr(name)}" style="${style}"></span>`;
+        return `<span class="dot" title="${escapeAttr(name)}" style="${colorSwatchStyle(name)}"></span>`;
       }).join("");
       return dots ? `<div class="color-dots">${dots}</div>` : "";
     }
@@ -720,10 +756,10 @@
 
     function colorOptionsMarkup(selected = []) {
       const selectedSet = new Set(normalizeList(selected));
-      return COLOR_PRESETS.map((option) => `
+      return currentColorOptions(selected).map((option) => `
         <label class="choice-chip">
           <input type="checkbox" name="colors" value="${escapeAttr(option.name)}" ${selectedSet.has(option.name) ? "checked" : ""}>
-          <span><i class="swatch" style="background:${option.hex}"></i>${escapeHtml(option.name)}</span>
+          <span><i class="swatch" style="${colorSwatchStyle(option.name)}"></i>${escapeHtml(option.name)}</span>
         </label>
       `).join("");
     }
@@ -765,8 +801,8 @@
       const seasons = item?.seasons || [];
       const styles = item?.styles || [];
       const colors = item?.colors || [];
-      const knownColors = colors.filter((name) => COLOR_MAP[name]);
-      const customColors = colors.filter((name) => !COLOR_MAP[name]).join(", ");
+      const knownColors = colors;
+      const customColors = "";
 
       return `
         <form class="form" id="clothForm">
@@ -815,7 +851,7 @@
           <div class="form-section">
             <div class="form-section-title">색상</div>
             <div class="chip-grid">${colorOptionsMarkup(knownColors)}</div>
-            <div class="field" style="margin-top:10px;"><label>없는 색상 직접 입력</label><input name="customColors" placeholder="예: 민트, 버건디" value="${escapeAttr(customColors)}"></div>
+            <div class="field" style="margin-top:10px;"><label>없는 색상 직접 입력</label><input name="customColors" placeholder="예: 민트, 버건디" value="${escapeAttr(customColors)}"><div class="tiny-help">저장하면 다음부터 위 색상 칩에 같이 보여져.</div></div>
           </div>
 
           <div class="form-section">
@@ -998,52 +1034,143 @@
     }
 
     function openOOTDForm() {
-      $("#modalTitle").textContent = "OOTD 기록";
-      $("#modalBody").innerHTML = `
+      return openEditOOTDForm(null);
+    }
+
+    function openEditOOTDForm(id) {
+      const item = id ? state.ootds.find((ootd) => ootd.id === id) : null;
+      const isEdit = Boolean(item);
+
+      $("#modalTitle").textContent = isEdit ? "OOTD 수정" : "OOTD 기록";
+      $("#modalBody").innerHTML = renderOOTDForm(item);
+      $("#modal").classList.add("show");
+      bindOOTDForm(item);
+    }
+
+    function renderOOTDForm(item = null) {
+      const isEdit = Boolean(item);
+      const selectedIds = new Set(item?.clothIds || []);
+      const scene = item?.scene || "출근";
+      const rating = String(item?.rating || "5");
+      const previewContent = item?.photoUrl
+        ? `<img src="${escapeAttr(item.photoUrl)}" alt="OOTD">`
+        : "👗";
+
+      return `
         <form class="form" id="ootdForm">
-          <div class="field"><label>날짜</label><input name="date" type="date" value="${today()}" required></div>
-          <div class="field">
-            <label>오늘 입은 옷을 옷장에서 선택</label>
+          <div class="form-intro">
+            <div class="big-preview" id="ootdPreview">${previewContent}</div>
+            <div class="intro-text">
+              <b id="ootdPreviewTitle">${isEdit ? "착장 수정" : "오늘 착장"}</b>
+              <span id="ootdPreviewMeta">옷장에서 고른 옷과 착장 사진을 함께 저장해.</span>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">날짜와 상황</div>
+            <div class="field"><label>날짜</label><input name="date" type="date" value="${escapeAttr(item?.date || today())}" required></div>
+            <div class="two">
+              <div class="field">
+                <label>상황</label>
+                <select name="scene">
+                  ${SCENE_OPTIONS.map((option) => `<option ${option === scene ? "selected" : ""}>${option}</option>`).join("")}
+                </select>
+              </div>
+              <div class="field">
+                <label>만족도</label>
+                <select name="rating">
+                  ${[5,4,3,2,1].map((score) => `<option value="${score}" ${String(score) === rating ? "selected" : ""}>${score}점</option>`).join("")}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">입은 옷</div>
             <div class="pick-grid">
-              ${state.clothes.map((item) => `
+              ${state.clothes.map((cloth) => `
                 <label class="pick">
-                  <input type="checkbox" name="clothIds" value="${item.id}">
+                  <input type="checkbox" name="clothIds" value="${cloth.id}" ${selectedIds.has(cloth.id) ? "checked" : ""}>
                   <span class="pick-inner">
-                    <span class="pick-photo">${item.photoUrl ? `<img src="${escapeAttr(item.photoUrl)}" alt="${escapeAttr(item.name)}">` : escapeHtml(item.emoji || "👚")}</span>
+                    <span class="pick-photo">${cloth.photoUrl ? `<img src="${escapeAttr(cloth.photoUrl)}" alt="${escapeAttr(cloth.name)}">` : escapeHtml(cloth.emoji || "👚")}</span>
                     <span class="pick-text">
-                      <b>${escapeHtml(item.name)}</b>
-                      <small>${escapeHtml(item.category || "")} · ${(item.colors || []).map(escapeHtml).join(", ") || "색상 없음"}<br>${escapeHtml(item.status || "깨끗함")}</small>
+                      <b>${escapeHtml(cloth.name)}</b>
+                      <small>${escapeHtml(cloth.category || "")} · ${(cloth.colors || []).map(escapeHtml).join(", ") || "색상 없음"}<br>${escapeHtml(cloth.status || "깨끗함")}</small>
                     </span>
                   </span>
                 </label>
               `).join("")}
             </div>
+            <div class="tiny-help">수정 저장하면 선택한 옷 기준으로 착용 횟수도 다시 계산돼.</div>
           </div>
-          <div class="field"><label>착장 사진</label><input name="photoFile" type="file" accept="image/*"></div>
-          <div class="field"><label>착장 사진 URL</label><input name="photoUrl" placeholder="파일 대신 URL 사용 가능"></div>
-          <div class="two">
-            <div class="field">
-              <label>상황</label>
-              <select name="scene"><option>출근</option><option>교육장</option><option>외출</option><option>여행</option><option>데이트</option><option>집</option><option>기타</option></select>
+
+          <div class="form-section">
+            <div class="form-section-title">착장 사진</div>
+            <label class="upload-card">
+              <strong>새 착장 사진 선택</strong>
+              <span class="small">사진을 새로 선택하지 않으면 기존 사진 URL을 그대로 사용해.</span>
+              <input name="photoFile" type="file" accept="image/*">
+            </label>
+            <div class="field"><label>착장 사진 URL</label><input name="photoUrl" placeholder="파일 대신 URL 사용 가능" value="${escapeAttr(item?.photoUrl || "")}"></div>
+          </div>
+
+          <div class="form-section">
+            <div class="form-section-title">날씨와 메모</div>
+            <div class="two">
+              <div class="field"><label>날씨</label><input name="weather" placeholder="맑음, 비" value="${escapeAttr(item?.weather || "")}"></div>
+              <div class="field"><label>기온</label><input name="temperature" type="number" placeholder="23" value="${escapeAttr(item?.temperature || "")}"></div>
             </div>
-            <div class="field">
-              <label>만족도</label>
-              <select name="rating"><option value="5">5점</option><option value="4">4점</option><option value="3">3점</option><option value="2">2점</option><option value="1">1점</option></select>
-            </div>
+            <div class="field"><label>메모</label><textarea name="memo" placeholder="오늘 착장 느낌">${escapeHtml(item?.memo || "")}</textarea></div>
           </div>
-          <div class="two">
-            <div class="field"><label>날씨</label><input name="weather" placeholder="맑음, 비"></div>
-            <div class="field"><label>기온</label><input name="temperature" type="number" placeholder="23"></div>
+
+          ${isEdit ? `<div class="danger-note">OOTD를 삭제하면 해당 날짜의 착용 기록이 빠지고, 연결된 옷의 착용 횟수가 다시 계산돼.</div>` : ""}
+
+          <div class="form-actions ${isEdit ? "" : "one"}">
+            ${isEdit ? `<button class="btn danger" type="button" id="deleteOOTDBtn">삭제</button>` : ""}
+            <button class="btn" type="submit">${isEdit ? "수정 저장" : "OOTD 저장"}</button>
           </div>
-          <div class="field"><label>메모</label><textarea name="memo" placeholder="오늘 착장 느낌"></textarea></div>
-          <button class="btn" type="submit">OOTD 저장</button>
         </form>
       `;
-      $("#modal").classList.add("show");
+    }
 
-      $("#ootdForm").addEventListener("submit", async (e) => {
+    function bindOOTDForm(item = null) {
+      const form = $("#ootdForm");
+      const fileInput = form.querySelector('input[name="photoFile"]');
+      const photoUrlInput = form.querySelector('input[name="photoUrl"]');
+      let tempPhotoUrl = "";
+
+      const updatePreview = () => {
+        const preview = $("#ootdPreview");
+        const title = $("#ootdPreviewTitle");
+        const meta = $("#ootdPreviewMeta");
+        const currentPhotoUrl = tempPhotoUrl || photoUrlInput.value.trim();
+        const selectedCount = form.querySelectorAll('input[name="clothIds"]:checked').length;
+        const scene = form.querySelector('select[name="scene"]').value;
+        const date = form.querySelector('input[name="date"]').value;
+
+        preview.innerHTML = currentPhotoUrl
+          ? `<img src="${escapeAttr(currentPhotoUrl)}" alt="OOTD preview">`
+          : "👗";
+        title.textContent = `${formatDate(date)} ${scene}`;
+        meta.textContent = `${selectedCount}개 옷 선택 · 만족도 ${form.querySelector('select[name="rating"]').value}점`;
+      };
+
+      form.addEventListener("input", updatePreview);
+      form.addEventListener("change", updatePreview);
+      fileInput.addEventListener("change", () => {
+        const file = fileInput.files?.[0];
+        tempPhotoUrl = file ? URL.createObjectURL(file) : "";
+        updatePreview();
+      });
+
+      const deleteBtn = $("#deleteOOTDBtn");
+      if (deleteBtn && item) {
+        deleteBtn.addEventListener("click", () => deleteOOTD(item.id));
+      }
+
+      form.addEventListener("submit", async (e) => {
         e.preventDefault();
-        const fd = new FormData(e.target);
+        const fd = new FormData(form);
         const clothIds = fd.getAll("clothIds");
 
         if (!clothIds.length) {
@@ -1053,7 +1180,7 @@
 
         const file = fd.get("photoFile");
         let photoUrl = String(fd.get("photoUrl") || "").trim();
-        let r2Key = "";
+        let r2Key = item?.r2Key || "";
 
         try {
           if (file && file.size) {
@@ -1062,29 +1189,51 @@
             r2Key = uploaded.key;
           }
 
-          await api("/api/ootd", {
-            method: "POST",
-            body: {
-              date: fd.get("date"),
-              clothIds,
-              photoUrl,
-              r2Key,
-              scene: fd.get("scene"),
-              rating: fd.get("rating"),
-              weather: fd.get("weather"),
-              temperature: fd.get("temperature"),
-              memo: fd.get("memo"),
-            },
-          });
+          const payload = {
+            date: fd.get("date"),
+            clothIds,
+            photoUrl,
+            r2Key,
+            scene: fd.get("scene"),
+            rating: fd.get("rating"),
+            weather: fd.get("weather"),
+            temperature: fd.get("temperature"),
+            memo: fd.get("memo"),
+          };
+
+          if (item) {
+            await api(`/api/ootd/${item.id}`, { method: "PATCH", body: payload });
+            toast("OOTD를 수정했어.");
+          } else {
+            await api("/api/ootd", { method: "POST", body: payload });
+            toast("OOTD를 기록했어.");
+          }
 
           closeModal();
-          toast("OOTD를 기록했어.");
           await loadAll();
           setTab("ootd");
         } catch (error) {
           toast(error.message);
         }
       });
+
+      updatePreview();
+    }
+
+    async function deleteOOTD(id) {
+      const item = state.ootds.find((ootd) => ootd.id === id);
+      const ok = confirm(`${formatDate(item?.date)} OOTD를 삭제할까?\n\n연결된 옷의 착용 횟수도 다시 계산돼.`);
+      if (!ok) return;
+
+      try {
+        await api(`/api/ootd/${id}`, { method: "DELETE" });
+        closeModal();
+        toast("OOTD를 삭제했어.");
+        await loadAll();
+        setTab("ootd");
+      } catch (error) {
+        toast(error.message);
+      }
     }
 
     function openLaundryForm() {

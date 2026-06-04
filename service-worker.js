@@ -1,4 +1,4 @@
-const CACHE_VERSION = "paper-closet-pwa-v2-edit-ui";
+const CACHE_VERSION = "paper-closet-pwa-v3-ootd-edit-colors";
 const APP_SHELL = [
   "./",
   "./index.html",
