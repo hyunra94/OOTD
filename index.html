@@ -70,6 +70,15 @@
     .pill-row::-webkit-scrollbar{display:none}
     .pill{white-space:nowrap;padding:9px 13px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:13px;color:var(--muted)}
     .pill.active{background:var(--ink);border-color:var(--ink);color:white}
+    .filter-panel{padding:13px;display:grid;gap:12px;margin-bottom:12px}
+    .filter-label{display:flex;align-items:center;justify-content:space-between;margin:0 2px 7px;color:var(--muted);font-size:12px;font-weight:900}
+    .filter-label b{color:var(--ink);font-size:13px}
+    .filter-selects{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+    .filter-selects select{width:100%;border:1px solid var(--line);background:var(--paper);border-radius:16px;padding:11px 12px;outline:none;color:var(--ink);font-size:13px}
+    .filter-summary{display:flex;align-items:center;justify-content:space-between;gap:8px;margin:0 3px 10px;color:var(--muted);font-size:12px}
+    .filter-reset{padding:8px 10px;border-radius:999px;border:1px solid var(--line);background:var(--paper);font-size:12px;color:var(--muted);font-weight:800}
+    .color-pill span{display:inline-flex;align-items:center;gap:6px}
+    .color-mini{width:12px;height:12px;border-radius:50%;border:1px solid rgba(59,48,42,.18);display:inline-block;background:linear-gradient(135deg,#fff,#ddd)}
     .closet-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px}
     .cloth{padding:10px;overflow:hidden}
     .photo{aspect-ratio:1/1;border-radius:20px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:42px;margin-bottom:10px}
@@ -209,6 +218,9 @@
     const state = {
       tab: "home",
       filter: "전체",
+      colorFilter: "전체",
+      dateFilter: "전체",
+      closetSort: "updated-desc",
       query: "",
       loading: false,
       clothes: [],
@@ -415,22 +427,108 @@
 
     function filteredClothes() {
       const q = state.query.toLowerCase().trim();
-      return state.clothes.filter((item) => {
-        const filterOK =
+      const now = new Date();
+
+      const filtered = state.clothes.filter((item) => {
+        const categoryOK =
           state.filter === "전체" ||
           item.category === state.filter ||
           item.status === state.filter;
+
+        const itemColors = normalizeList(item.colors || []);
+        const colorOK = state.colorFilter === "전체" || itemColors.includes(state.colorFilter);
+        const dateOK = matchesDateFilter(item, state.dateFilter, now);
+
         const text = [
           item.name,
           item.category,
           item.detail,
-          (item.colors || []).join(","),
+          itemColors.join(","),
           (item.seasons || []).join(","),
           (item.styles || []).join(","),
           item.status,
         ].join(" ").toLowerCase();
-        return filterOK && (!q || text.includes(q));
+
+        return categoryOK && colorOK && dateOK && (!q || text.includes(q));
       });
+
+      return sortClothes(filtered, state.closetSort);
+    }
+
+    function matchesDateFilter(item, filter, now = new Date()) {
+      if (filter === "전체") return true;
+      if (filter === "worn-7") return isWithinDays(item.lastWorn, 7, now);
+      if (filter === "worn-30") return isWithinDays(item.lastWorn, 30, now);
+      if (filter === "worn-90") return isWithinDays(item.lastWorn, 90, now);
+      if (filter === "never-worn") return !item.lastWorn;
+      if (filter === "washed-30") return isWithinDays(item.lastWashed, 30, now);
+      if (filter === "purchase-365") return isWithinDays(item.purchaseDate, 365, now);
+      return true;
+    }
+
+    function isWithinDays(dateValue, days, now = new Date()) {
+      const time = dateTime(dateValue);
+      if (!time) return false;
+      const diff = now.getTime() - time;
+      return diff >= 0 && diff <= days * 24 * 60 * 60 * 1000;
+    }
+
+    function dateTime(value) {
+      if (!value) return 0;
+      const parsed = Date.parse(value);
+      return Number.isFinite(parsed) ? parsed : 0;
+    }
+
+    function sortClothes(list, sort) {
+      const copy = [...list];
+      const desc = (key) => (a, b) => dateTime(b[key]) - dateTime(a[key]);
+      const ascMissingFirst = (key) => (a, b) => dateTime(a[key]) - dateTime(b[key]);
+
+      if (sort === "last-worn-desc") copy.sort(desc("lastWorn"));
+      else if (sort === "last-worn-asc") copy.sort(ascMissingFirst("lastWorn"));
+      else if (sort === "created-desc") copy.sort(desc("createdTime"));
+      else if (sort === "updated-desc") copy.sort(desc("updatedTime"));
+      else if (sort === "total-wear-desc") copy.sort((a, b) => Number(b.totalWear || 0) - Number(a.totalWear || 0));
+      else if (sort === "total-wear-asc") copy.sort((a, b) => Number(a.totalWear || 0) - Number(b.totalWear || 0));
+      else if (sort === "need-wash-first") copy.sort((a, b) => Number(b.status === "세탁 필요") - Number(a.status === "세탁 필요"));
+      else if (sort === "name-asc") copy.sort((a, b) => String(a.name || "").localeCompare(String(b.name || ""), "ko"));
+
+      return copy;
+    }
+
+    function currentClosetColors() {
+      const seen = new Set(["전체"]);
+      const options = ["전체"];
+      const add = (name) => {
+        const clean = String(name || "").trim();
+        if (!clean || seen.has(clean)) return;
+        seen.add(clean);
+        options.push(clean);
+      };
+      COLOR_PRESETS.forEach((item) => add(item.name));
+      Object.keys(EXTRA_COLOR_HEX).forEach(add);
+      state.clothes.forEach((cloth) => normalizeList(cloth.colors || []).forEach(add));
+      return options;
+    }
+
+    function closetFilterCount() {
+      let count = 0;
+      if (state.filter !== "전체") count += 1;
+      if (state.colorFilter !== "전체") count += 1;
+      if (state.dateFilter !== "전체") count += 1;
+      if (state.query.trim()) count += 1;
+      return count;
+    }
+
+    function resetClosetFilters() {
+      state.filter = "전체";
+      state.colorFilter = "전체";
+      state.dateFilter = "전체";
+      state.closetSort = "updated-desc";
+      state.query = "";
+      const search = $("#searchInput");
+      if (search) search.value = "";
+      render();
     }
 
     function needWash() {
@@ -512,14 +610,61 @@
     }
 
     function renderCloset() {
-      const categories = ["전체", "상의", "하의", "아우터", "원피스", "신발", "가방", "액세서리", "세탁 필요"];
+      const categories = ["전체", ...CATEGORY_OPTIONS, "세탁 필요"];
+      const colors = currentClosetColors();
       const list = filteredClothes();
+      const activeCount = closetFilterCount();
 
       return `
         <section class="section">
-          <div class="pill-row">
-            ${categories.map((cat) => `<button class="pill ${state.filter === cat ? "active" : ""}" data-filter="${cat}">${cat}</button>`).join("")}
+          <div class="filter-panel card">
+            <div>
+              <div class="filter-label"><b>종류</b><span>${state.filter}</span></div>
+              <div class="pill-row">
+                ${categories.map((cat) => `<button class="pill ${state.filter === cat ? "active" : ""}" data-filter="${cat}">${cat}</button>`).join("")}
+              </div>
+            </div>
+
+            <div>
+              <div class="filter-label"><b>색상</b><span>${state.colorFilter}</span></div>
+              <div class="pill-row">
+                ${colors.map((color) => `
+                  <button class="pill color-pill ${state.colorFilter === color ? "active" : ""}" data-color-filter="${escapeAttr(color)}">
+                    <span>${color === "전체" ? "" : `<i class="color-mini" style="${colorSwatchStyle(color)}"></i>`}${escapeHtml(color)}</span>
+                  </button>
+                `).join("")}
+              </div>
+            </div>
+
+            <div class="filter-selects">
+              <select id="closetDateFilter" aria-label="날짜 필터">
+                <option value="전체" ${state.dateFilter === "전체" ? "selected" : ""}>날짜 전체</option>
+                <option value="worn-7" ${state.dateFilter === "worn-7" ? "selected" : ""}>최근 7일 입은 옷</option>
+                <option value="worn-30" ${state.dateFilter === "worn-30" ? "selected" : ""}>최근 30일 입은 옷</option>
+                <option value="worn-90" ${state.dateFilter === "worn-90" ? "selected" : ""}>최근 90일 입은 옷</option>
+                <option value="never-worn" ${state.dateFilter === "never-worn" ? "selected" : ""}>아직 안 입은 옷</option>
+                <option value="washed-30" ${state.dateFilter === "washed-30" ? "selected" : ""}>최근 30일 세탁</option>
+                <option value="purchase-365" ${state.dateFilter === "purchase-365" ? "selected" : ""}>1년 이내 구매</option>
+              </select>
+
+              <select id="closetSort" aria-label="정렬">
+                <option value="updated-desc" ${state.closetSort === "updated-desc" ? "selected" : ""}>최근 수정순</option>
+                <option value="created-desc" ${state.closetSort === "created-desc" ? "selected" : ""}>최근 등록순</option>
+                <option value="last-worn-desc" ${state.closetSort === "last-worn-desc" ? "selected" : ""}>최근 착용순</option>
+                <option value="last-worn-asc" ${state.closetSort === "last-worn-asc" ? "selected" : ""}>오래 안 입은 순</option>
+                <option value="need-wash-first" ${state.closetSort === "need-wash-first" ? "selected" : ""}>세탁 필요 먼저</option>
+                <option value="total-wear-desc" ${state.closetSort === "total-wear-desc" ? "selected" : ""}>많이 입은 순</option>
+                <option value="total-wear-asc" ${state.closetSort === "total-wear-asc" ? "selected" : ""}>적게 입은 순</option>
+                <option value="name-asc" ${state.closetSort === "name-asc" ? "selected" : ""}>이름순</option>
+              </select>
+            </div>
           </div>
+
+          <div class="filter-summary">
+            <span>총 ${list.length}개${activeCount ? ` · 필터 ${activeCount}개 적용` : ""}</span>
+            ${activeCount ? `<button class="filter-reset" id="resetClosetFilters" type="button">필터 초기화</button>` : ""}
+          </div>
+
           <div class="closet-grid">
             ${list.length ? list.map(clothCard).join("") : `<div class="empty card" style="grid-column:1/-1">조건에 맞는 옷이 없어.</div>`}
           </div>
@@ -621,6 +766,34 @@
           render();
         });
       });
+
+      document.querySelectorAll("[data-color-filter]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.colorFilter = btn.dataset.colorFilter;
+          render();
+        });
+      });
+
+      const dateFilter = $("#closetDateFilter");
+      if (dateFilter) {
+        dateFilter.addEventListener("change", (event) => {
+          state.dateFilter = event.target.value;
+          render();
+        });
+      }
+
+      const closetSort = $("#closetSort");
+      if (closetSort) {
+        closetSort.addEventListener("change", (event) => {
+          state.closetSort = event.target.value;
+          render();
+        });
+      }
+
+      const resetFilters = $("#resetClosetFilters");
+      if (resetFilters) {
+        resetFilters.addEventListener("click", resetClosetFilters);
+      }
 
       document.querySelectorAll("[data-open]").forEach((btn) => {
         btn.addEventListener("click", () => openForm(btn.dataset.open));
