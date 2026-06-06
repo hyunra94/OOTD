@@ -131,6 +131,17 @@
     .pick-text small{display:block;margin-top:3px;color:var(--muted);font-size:11px;line-height:1.35}
     .pick input:checked + .pick-inner{border-color:var(--ink);box-shadow:inset 0 0 0 2px var(--ink);background:#fff8fb}
     .pick input:checked + .pick-inner::after{content:"선택";position:absolute;top:12px;right:12px;background:var(--ink);color:white;border-radius:999px;padding:5px 8px;font-size:11px;font-weight:800}
+    .ootd-picker-tools{display:grid;gap:9px;margin-bottom:10px;min-width:0;max-width:100%}
+    .ootd-filter-scroll{display:flex;gap:7px;overflow-x:auto;max-width:100%;padding:1px 1px 8px;scrollbar-width:none}
+    .ootd-filter-scroll::-webkit-scrollbar{display:none}
+    .ootd-filter-chip{white-space:nowrap;padding:9px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:12px;font-weight:900;color:var(--muted)}
+    .ootd-filter-chip.active{background:var(--ink);border-color:var(--ink);color:white}
+    .ootd-search-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;min-width:0}
+    .ootd-pick-search{width:100%;min-width:0;border:1px solid var(--line);background:var(--paper);border-radius:18px;padding:12px 13px;outline:none;font-size:13px}
+    .ootd-clear-btn{white-space:nowrap;padding:12px 13px;border-radius:18px;background:var(--paper);border:1px solid var(--line);font-size:12px;font-weight:900;color:var(--muted)}
+    .pick.hidden-pick{display:none}
+    .form-section-title small{color:var(--muted);font-size:11px;font-weight:800}
+
 
     .cloth{cursor:pointer;transition:.16s ease;position:relative;touch-action:manipulation}
     .cloth:active{transform:scale(.98)}
@@ -265,6 +276,7 @@
 
 
     let deferredInstallPrompt = null;
+    let swRefreshing = false;
 
     function isStandaloneMode() {
       return window.matchMedia("(display-mode: standalone)").matches || window.navigator.standalone === true;
@@ -308,19 +320,81 @@
       if (!("serviceWorker" in navigator)) return;
 
       try {
-        const registration = await navigator.serviceWorker.register("./service-worker.js?v=7-click-edit-fix", {
+        const registration = await navigator.serviceWorker.register("./service-worker.js?v=9-ootd-category-filter", {
           scope: "./",
           updateViaCache: "none",
         });
+
+        window.paperClosetSW = registration;
         registration.update();
 
-        if (registration.waiting) {
+        registration.addEventListener("updatefound", () => {
+          const newWorker = registration.installing;
+          if (!newWorker) return;
+
+          newWorker.addEventListener("statechange", () => {
+            if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
+              toast("앱 새 버전을 적용하는 중이야.");
+              newWorker.postMessage({ type: "SKIP_WAITING" });
+            }
+          });
+        });
+
+        if (registration.waiting && navigator.serviceWorker.controller) {
           registration.waiting.postMessage({ type: "SKIP_WAITING" });
         }
       } catch (error) {
         console.warn("Service worker registration failed:", error);
       }
     }
+
+    function clearServiceWorkerCache() {
+      if ("serviceWorker" in navigator && navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({ type: "CLEAR_SW_CACHE" });
+        toast("앱 캐시를 정리하는 중이야.");
+        return;
+      }
+
+      if ("caches" in window) {
+        caches.keys()
+          .then((keys) => Promise.all(keys.filter((key) => key.startsWith("paper-closet-pwa-")).map((key) => caches.delete(key))))
+          .then(() => toast("앱 캐시를 정리했어."))
+          .catch(() => toast("캐시 정리에 실패했어."));
+        return;
+      }
+
+      toast("이 브라우저는 SW 캐시 정리를 지원하지 않아.");
+    }
+
+    if ("serviceWorker" in navigator) {
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (swRefreshing) return;
+        swRefreshing = true;
+        window.location.reload();
+      });
+
+      navigator.serviceWorker.addEventListener("message", (event) => {
+        const type = event.data && event.data.type;
+
+        if (type === "SW_CACHE_CLEARED") {
+          toast("앱 캐시를 정리했어.");
+          return;
+        }
+
+        if (type === "SW_USED_OFFLINE_API_CACHE") {
+          toast("오프라인이라 최근 캐시 데이터로 보여주는 중이야.");
+        }
+      });
+    }
+
+    window.addEventListener("online", () => {
+      toast("온라인으로 돌아왔어.");
+      if (hasConfig()) loadAll();
+    });
+
+    window.addEventListener("offline", () => {
+      toast("오프라인 상태야. 저장과 업로드는 온라인에서 가능해.");
+    });
 
     window.addEventListener("beforeinstallprompt", (event) => {
       event.preventDefault();
@@ -420,7 +494,7 @@
         state.ootds = ootd.ootds || [];
         state.laundries = laundry.laundries || [];
       } catch (error) {
-        toast(error.message);
+        toast(navigator.onLine ? error.message : "오프라인 상태야. 캐시된 데이터가 없으면 목록이 비어 보일 수 있어.");
       } finally {
         state.loading = false;
         render();
@@ -864,6 +938,7 @@
           <p class="small">여기에는 Notion Token을 넣지 마. Notion Token은 Cloudflare Worker Secret에만 넣어야 해.</p>
           <button class="btn" type="submit">저장하고 불러오기</button>
           <button class="btn soft" type="button" id="schemaBtn">Notion 속성 체크</button>
+          <button class="btn soft" type="button" id="swCacheBtn">앱 캐시 초기화</button>
         </form>
       `;
       $("#modal").classList.add("show");
@@ -894,6 +969,8 @@
           alert(error.message);
         }
       });
+
+      $("#swCacheBtn").addEventListener("click", clearServiceWorkerCache);
     }
 
     function openForm(type) {
@@ -1255,6 +1332,11 @@
       const previewContent = item?.photoUrl
         ? `<img src="${escapeAttr(item.photoUrl)}" alt="OOTD">`
         : "👗";
+      const ootdCategories = [
+        "전체",
+        ...CATEGORY_OPTIONS.filter((category) => state.clothes.some((cloth) => (cloth.category || "기타") === category)),
+        "선택한 옷"
+      ];
 
       return `
         <form class="form" id="ootdForm">
@@ -1286,22 +1368,52 @@
           </div>
 
           <div class="form-section">
-            <div class="form-section-title">입은 옷</div>
-            <div class="pick-grid">
-              ${state.clothes.map((cloth) => `
-                <label class="pick">
-                  <input type="checkbox" name="clothIds" value="${cloth.id}" ${selectedIds.has(cloth.id) ? "checked" : ""}>
-                  <span class="pick-inner">
-                    <span class="pick-photo">${cloth.photoUrl ? `<img src="${escapeAttr(cloth.photoUrl)}" alt="${escapeAttr(cloth.name)}">` : escapeHtml(cloth.emoji || "👚")}</span>
-                    <span class="pick-text">
-                      <b>${escapeHtml(cloth.name)}</b>
-                      <small>${escapeHtml(cloth.category || "")} · ${(cloth.colors || []).map(escapeHtml).join(", ") || "색상 없음"}<br>${escapeHtml(cloth.status || "깨끗함")}</small>
-                    </span>
-                  </span>
-                </label>
-              `).join("")}
+            <div class="form-section-title">
+              <span>입은 옷</span>
+              <small id="ootdPickSummary">${state.clothes.length}개 중 ${selectedIds.size}개 선택</small>
             </div>
-            <div class="tiny-help">수정 저장하면 선택한 옷 기준으로 착용 횟수도 다시 계산돼.</div>
+
+            <div class="ootd-picker-tools">
+              <div class="ootd-filter-scroll" id="ootdCategoryFilter">
+                ${ootdCategories.map((category, index) => `<button type="button" class="ootd-filter-chip ${index === 0 ? "active" : ""}" data-ootd-category="${escapeAttr(category)}">${escapeHtml(category)}</button>`).join("")}
+              </div>
+              <div class="ootd-search-row">
+                <input id="ootdPickSearch" class="ootd-pick-search" type="search" placeholder="옷 이름, 색상, 스타일 검색">
+                <button type="button" class="ootd-clear-btn" id="ootdClearPick">선택 해제</button>
+              </div>
+            </div>
+
+            <div class="pick-grid" id="ootdPickGrid">
+              ${state.clothes.map((cloth) => {
+                const colors = normalizeList(cloth.colors || []);
+                const seasons = normalizeList(cloth.seasons || []);
+                const styles = normalizeList(cloth.styles || []);
+                const category = cloth.category || "기타";
+                const searchText = [
+                  cloth.name,
+                  category,
+                  cloth.detail,
+                  ...colors,
+                  ...seasons,
+                  ...styles,
+                  cloth.status
+                ].join(" ");
+
+                return `
+                  <label class="pick" data-ootd-pick data-category="${escapeAttr(category)}" data-search="${escapeAttr(searchText.toLowerCase())}">
+                    <input type="checkbox" name="clothIds" value="${cloth.id}" ${selectedIds.has(cloth.id) ? "checked" : ""}>
+                    <span class="pick-inner">
+                      <span class="pick-photo">${cloth.photoUrl ? `<img src="${escapeAttr(cloth.photoUrl)}" alt="${escapeAttr(cloth.name)}">` : escapeHtml(cloth.emoji || "👚")}</span>
+                      <span class="pick-text">
+                        <b>${escapeHtml(cloth.name)}</b>
+                        <small>${escapeHtml(category)} · ${colors.map(escapeHtml).join(", ") || "색상 없음"}<br>${escapeHtml(cloth.status || "깨끗함")}</small>
+                      </span>
+                    </span>
+                  </label>
+                `;
+              }).join("")}
+            </div>
+            <div class="tiny-help">상의/하의 같은 종류로 먼저 좁히고, 검색으로 색상이나 이름을 찾을 수 있어. 수정 저장하면 착용 횟수도 다시 계산돼.</div>
           </div>
 
           <div class="form-section">
@@ -1363,6 +1475,8 @@
         updatePreview();
       });
 
+      bindOOTDPickFilters(form);
+
       const deleteBtn = $("#deleteOOTDBtn");
       if (deleteBtn && item) {
         deleteBtn.addEventListener("click", () => deleteOOTD(item.id));
@@ -1418,6 +1532,69 @@
       });
 
       updatePreview();
+    }
+
+    function bindOOTDPickFilters(form) {
+      const picks = [...form.querySelectorAll("[data-ootd-pick]")];
+      const categoryButtons = [...form.querySelectorAll("[data-ootd-category]")];
+      const searchInput = form.querySelector("#ootdPickSearch");
+      const clearBtn = form.querySelector("#ootdClearPick");
+      const summary = form.querySelector("#ootdPickSummary");
+      let activeCategory = "전체";
+
+      const applyFilters = () => {
+        const query = String(searchInput?.value || "").trim().toLowerCase();
+        let visibleCount = 0;
+        let selectedCount = 0;
+
+        picks.forEach((pick) => {
+          const checkbox = pick.querySelector('input[name="clothIds"]');
+          const checked = Boolean(checkbox?.checked);
+          const category = pick.dataset.category || "기타";
+          const searchable = pick.dataset.search || "";
+
+          if (checked) selectedCount += 1;
+
+          const categoryOK =
+            activeCategory === "전체" ||
+            (activeCategory === "선택한 옷" ? checked : category === activeCategory);
+          const searchOK = !query || searchable.includes(query);
+          const visible = categoryOK && searchOK;
+
+          pick.classList.toggle("hidden-pick", !visible);
+          if (visible) visibleCount += 1;
+        });
+
+        if (summary) {
+          summary.textContent = `${visibleCount}개 표시 · ${selectedCount}개 선택`;
+        }
+      };
+
+      categoryButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          activeCategory = button.dataset.ootdCategory || "전체";
+          categoryButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
+          applyFilters();
+        });
+      });
+
+      searchInput?.addEventListener("input", applyFilters);
+
+      picks.forEach((pick) => {
+        const checkbox = pick.querySelector('input[name="clothIds"]');
+        checkbox?.addEventListener("change", applyFilters);
+      });
+
+      clearBtn?.addEventListener("click", () => {
+        picks.forEach((pick) => {
+          const checkbox = pick.querySelector('input[name="clothIds"]');
+          if (checkbox) checkbox.checked = false;
+        });
+        form.dispatchEvent(new Event("change", { bubbles: true }));
+        applyFilters();
+      });
+
+      applyFilters();
     }
 
     async function deleteOOTD(id) {
