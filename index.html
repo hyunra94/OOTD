@@ -136,10 +136,39 @@
     .ootd-filter-scroll::-webkit-scrollbar{display:none}
     .ootd-filter-chip{white-space:nowrap;padding:9px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:12px;font-weight:900;color:var(--muted)}
     .ootd-filter-chip.active{background:var(--ink);border-color:var(--ink);color:white}
+    .ootd-season-filter .ootd-filter-chip.active{background:#d7ead1;border-color:#a7c69e;color:var(--ink)}
+    .ootd-filter-label{display:flex;align-items:center;justify-content:space-between;margin:0 2px -2px;color:var(--muted);font-size:11px;font-weight:900}
+    .ootd-filter-label span:last-child{font-weight:800;opacity:.82}
+
     .ootd-search-row{display:grid;grid-template-columns:1fr auto;gap:8px;align-items:center;min-width:0}
     .ootd-pick-search{width:100%;min-width:0;border:1px solid var(--line);background:var(--paper);border-radius:18px;padding:12px 13px;outline:none;font-size:13px}
     .ootd-clear-btn{white-space:nowrap;padding:12px 13px;border-radius:18px;background:var(--paper);border:1px solid var(--line);font-size:12px;font-weight:900;color:var(--muted)}
     .pick.hidden-pick{display:none}
+    .laundry-filter-row{display:flex;gap:8px;overflow-x:auto;max-width:100%;padding:1px 1px 8px;scrollbar-width:none}
+    .laundry-filter-row::-webkit-scrollbar{display:none}
+    .laundry-chip{white-space:nowrap;padding:9px 12px;border-radius:999px;background:var(--paper);border:1px solid var(--line);font-size:12px;font-weight:900;color:var(--muted)}
+    .laundry-chip.active{background:var(--ink);border-color:var(--ink);color:white}
+    .laundry-tools{display:grid;gap:8px;margin-bottom:10px;min-width:0;max-width:100%}
+    .laundry-search{width:100%;min-width:0;border:1px solid var(--line);background:var(--paper);border-radius:18px;padding:12px 13px;outline:none;font-size:13px}
+    .laundry-log-actions{display:flex;gap:6px;margin-left:auto;flex:0 0 auto}
+    .mini-btn{border-radius:999px;padding:8px 10px;background:var(--paper);border:1px solid var(--line);font-size:11px;font-weight:900;color:var(--muted);white-space:nowrap}
+    .mini-btn.dark{background:var(--ink);border-color:var(--ink);color:white}
+    .laundry-note{font-size:12px;color:var(--muted);line-height:1.45;margin-top:6px}
+    .laundry-history-head{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:10px}
+    .laundry-history-head h2{margin:0;font-size:18px;letter-spacing:-.03em}
+    .laundry-history-help{padding:14px 15px;color:var(--muted);font-size:13px;line-height:1.55}
+    .history-card{padding:13px;display:grid;gap:10px}
+    .history-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px}
+    .history-title b{display:block;font-size:15px;letter-spacing:-.03em}
+    .history-title span{display:block;margin-top:3px;color:var(--muted);font-size:12px;line-height:1.35}
+    .history-thumbs{display:flex;gap:6px;overflow:hidden;max-width:100%}
+    .history-thumb{width:38px;height:38px;border-radius:14px;background:var(--blue);display:grid;place-items:center;overflow:hidden;font-size:18px;flex:0 0 auto}
+    .history-thumb img{width:100%;height:100%;object-fit:cover}
+    .history-names{color:var(--muted);font-size:12px;line-height:1.45;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+    .history-detail{padding:12px 14px}
+    .history-detail summary{cursor:pointer;font-weight:900;color:var(--ink)}
+    .history-detail .list{margin-top:10px}
+
     .form-section-title small{color:var(--muted);font-size:11px;font-weight:800}
 
 
@@ -244,6 +273,9 @@
       colorFilter: "전체",
       dateFilter: "전체",
       closetSort: "updated-desc",
+      laundryFilter: "need",
+      laundrySearch: "",
+      showLaundryHistory: false,
       query: "",
       loading: false,
       clothes: [],
@@ -320,7 +352,7 @@
       if (!("serviceWorker" in navigator)) return;
 
       try {
-        const registration = await navigator.serviceWorker.register("./service-worker.js?v=9-ootd-category-filter", {
+        const registration = await navigator.serviceWorker.register("./service-worker.js?v=12-laundry-simplified", {
           scope: "./",
           updateViaCache: "none",
         });
@@ -619,8 +651,157 @@
       render();
     }
 
+    function isNeedWashItem(item) {
+      return item.status === "세탁 필요" || Number(item.wearCount || 0) >= Number(item.washLimit || 999);
+    }
+
+    function laundryBucket(item) {
+      if (isNeedWashItem(item)) return "need";
+      if (Number(item.wearCount || 0) > 0) return "worn";
+      return "clean";
+    }
+
+    function laundryClothes(filter = state.laundryFilter) {
+      const q = String(state.laundrySearch || "").trim().toLowerCase();
+      return [...state.clothes]
+        .filter((item) => {
+          const bucket = laundryBucket(item);
+          const filterOK =
+            filter === "all" ||
+            filter === bucket ||
+            filter === item.category;
+          const text = [
+            item.name,
+            item.category,
+            item.detail,
+            ...(item.colors || []),
+            ...(item.seasons || []),
+            ...(item.styles || []),
+            item.status
+          ].join(" ").toLowerCase();
+          return filterOK && (!q || text.includes(q));
+        })
+        .sort((a, b) => {
+          const bucketScore = (item) => laundryBucket(item) === "need" ? 3 : laundryBucket(item) === "worn" ? 2 : 1;
+          return bucketScore(b) - bucketScore(a) || Number(b.wearCount || 0) - Number(a.wearCount || 0) || String(a.name || "").localeCompare(String(b.name || ""), "ko");
+        });
+    }
+
+    function clothesByIds(ids = []) {
+      return normalizeList(ids).map((id) => state.clothes.find((cloth) => cloth.id === id)).filter(Boolean);
+    }
+
+    function laundryLogCard(item) {
+      const clothes = clothesByIds(item.clothIds || []);
+      const names = clothes.map((cloth) => cloth.name).join(", ") || `${(item.clothIds || []).length}개 옷`;
+      return `
+        <div class="list-item card">
+          <div class="mini-photo">🫧</div>
+          <div class="grow">
+            <b>${formatDate(item.date)} 세탁</b>
+            <span>${escapeHtml(item.method || "세탁기")} · ${escapeHtml(names)}</span>
+            ${item.memo ? `<span>${escapeHtml(item.memo)}</span>` : ""}
+          </div>
+          <div class="laundry-log-actions">
+            <button class="mini-btn" data-edit-laundry="${item.id}" type="button">수정</button>
+            <button class="mini-btn" data-delete-laundry="${item.id}" type="button">삭제</button>
+          </div>
+        </div>
+      `;
+    }
+
+    function groupedLaundryHistory(limit = 8) {
+      const map = new Map();
+
+      state.laundries.forEach((item) => {
+        const date = item.date || "날짜 없음";
+        const method = item.method || "세탁";
+        const key = `${date}|${method}`;
+        const group = map.get(key) || {
+          date,
+          method,
+          clothIds: [],
+          beforeWearCount: 0,
+          records: [],
+          memos: []
+        };
+
+        group.records.push(item);
+        group.beforeWearCount += Number(item.beforeWearCount || 0);
+        normalizeList(item.clothIds || []).forEach((id) => {
+          if (!group.clothIds.includes(id)) group.clothIds.push(id);
+        });
+        if (item.memo && !group.memos.includes(item.memo)) group.memos.push(item.memo);
+        map.set(key, group);
+      });
+
+      return [...map.values()]
+        .sort((a, b) => String(b.date || "").localeCompare(String(a.date || "")))
+        .slice(0, limit);
+    }
+
+    function historyThumb(cloth) {
+      if (!cloth) return `<span class="history-thumb">🫧</span>`;
+      return cloth.photoUrl
+        ? `<span class="history-thumb"><img src="${escapeAttr(cloth.photoUrl)}" alt="${escapeAttr(cloth.name)}"></span>`
+        : `<span class="history-thumb">${escapeHtml(cloth.emoji || "👚")}</span>`;
+    }
+
+    function laundryHistoryGroupCard(group) {
+      const clothes = clothesByIds(group.clothIds || []);
+      const names = clothes.map((cloth) => cloth.name).join(", ") || `${group.clothIds.length}개 옷`;
+      const extra = group.clothIds.length > 4 ? `<span class="history-thumb">+${group.clothIds.length - 4}</span>` : "";
+      const memoText = group.memos.length ? ` · ${group.memos.slice(0, 2).join(", ")}` : "";
+
+      return `
+        <article class="history-card card">
+          <div class="history-top">
+            <div class="history-title">
+              <b>${formatDate(group.date)} 세탁 완료</b>
+              <span>${escapeHtml(group.method)} · ${group.clothIds.length}개 옷 · 세탁 전 ${group.beforeWearCount || 0}회 착용분 정리${escapeHtml(memoText)}</span>
+            </div>
+          </div>
+          <div class="history-thumbs">
+            ${clothes.slice(0, 4).map(historyThumb).join("")}${extra}
+          </div>
+          <div class="history-names">${escapeHtml(names)}</div>
+        </article>
+      `;
+    }
+
+    function renderLaundryHistorySection() {
+      const groups = groupedLaundryHistory();
+      const rawLogs = state.laundries.slice(0, 20);
+
+      return `
+        <section class="section">
+          <div class="laundry-history-head">
+            <h2>세탁 처리 내역</h2>
+            <button class="btn soft" data-toggle-laundry-history type="button">${state.showLaundryHistory ? "숨기기" : "보기"}</button>
+          </div>
+          ${state.showLaundryHistory ? `
+            <div class="list">
+              ${groups.length ? groups.map(laundryHistoryGroupCard).join("") : `<div class="empty card">아직 세탁 처리 내역이 없어.</div>`}
+              ${rawLogs.length ? `
+                <details class="history-detail card">
+                  <summary>원본 기록 수정/삭제</summary>
+                  <div class="list">
+                    ${rawLogs.map(laundryLogCard).join("")}
+                  </div>
+                </details>
+              ` : ""}
+            </div>
+          ` : `
+            <div class="laundry-history-help card">
+              세탁 기록은 옷 상태 계산용으로만 저장하고, 평소에는 숨겨둘게. 필요할 때만 열어서 날짜별 요약이나 원본 기록을 확인하면 돼.
+            </div>
+          `}
+        </section>
+      `;
+    }
+
     function needWash() {
-      return state.clothes.filter((item) => item.status === "세탁 필요" || Number(item.wearCount || 0) >= Number(item.washLimit || 999));
+      return state.clothes.filter(isNeedWashItem);
     }
 
     function photo(item, cls = "photo") {
@@ -826,36 +1007,62 @@
     }
 
     function renderLaundry() {
-      const wash = needWash();
+      const need = needWash();
+      const worn = state.clothes.filter((item) => !isNeedWashItem(item) && Number(item.wearCount || 0) > 0);
+      const clean = state.clothes.filter((item) => laundryBucket(item) === "clean");
+      const filters = [
+        ["need", `세탁 필요 ${need.length}`],
+        ["worn", `입은 옷 ${worn.length}`],
+        ["clean", `깨끗함 ${clean.length}`],
+        ["all", `전체 ${state.clothes.length}`],
+        ...CATEGORY_OPTIONS.map((category) => [category, category])
+      ];
+      const list = laundryClothes();
+
       return `
-        <section class="section">
-          <div class="section-title"><h2>세탁 필요</h2><button class="btn soft" data-open="laundry">+ 세탁</button></div>
-          <div class="list">${wash.length ? wash.map(laundryItem).join("") : `<div class="empty card">세탁 필요한 옷이 없어.</div>`}</div>
+        <section class="hero card">
+          <h2>세탁 관리</h2>
+          <p>세탁 기록을 길게 보는 화면보다, 지금 빨아야 할 옷과 입은 횟수를 먼저 보여줄게.</p>
+          <div class="grid3">
+            <div class="stat"><b>${need.length}</b><span>세탁 필요</span></div>
+            <div class="stat"><b>${worn.length}</b><span>입은 옷</span></div>
+            <div class="stat"><b>${clean.length}</b><span>깨끗함</span></div>
+          </div>
+          <button class="btn" data-open="laundry" type="button">+ 세탁 완료</button>
         </section>
 
         <section class="section">
-          <div class="section-title"><h2>최근 세탁 기록</h2></div>
-          <div class="list">
-            ${state.laundries.length ? state.laundries.slice(0, 10).map((item) => `
-              <div class="list-item card">
-                <div class="mini-photo">🫧</div>
-                <div class="grow"><b>${formatDate(item.date)} 세탁</b><span>${escapeHtml(item.method || "")} · ${item.beforeWearCount || 0}회 착용 후</span></div>
-              </div>
-            `).join("") : `<div class="empty card">아직 세탁 기록이 없어.</div>`}
+          <div class="section-title"><h2>빨래 바구니</h2><small>${list.length}개 표시</small></div>
+          <div class="laundry-tools">
+            <div class="laundry-filter-row">
+              ${filters.map(([key, label]) => `<button class="laundry-chip ${state.laundryFilter === key ? "active" : ""}" data-laundry-filter="${escapeAttr(key)}" type="button">${escapeHtml(label)}</button>`).join("")}
+            </div>
+            <input id="laundrySearchInput" class="laundry-search" type="search" placeholder="옷 이름, 색상, 스타일 검색" value="${escapeAttr(state.laundrySearch)}">
           </div>
+          <div class="list">${list.length ? list.map(laundryItem).join("") : `<div class="empty card">조건에 맞는 옷이 없어.</div>`}</div>
         </section>
+
+        ${renderLaundryHistorySection()}
       `;
     }
 
     function laundryItem(item) {
+      const bucket = laundryBucket(item);
+      const statusClass = bucket === "need" ? "need" : bucket === "worn" ? "worn" : "";
+      const note = bucket === "need"
+        ? "세탁 권장"
+        : bucket === "worn"
+          ? "아직 더 입을 수 있음"
+          : "깨끗함";
       return `
         <div class="list-item card">
           ${photo(item, "mini-photo")}
           <div class="grow">
             <b>${escapeHtml(item.name)}</b>
             <span>${item.wearCount || 0}회 착용 · 기준 ${item.washLimit || "-"}회 · ${escapeHtml(item.status || "")}</span>
+            <span>${escapeHtml(note)}</span>
           </div>
-          <button class="btn soft" data-wash-one="${item.id}">완료</button>
+          <button class="btn soft" data-wash-one="${item.id}" type="button">깨끗함 처리</button>
         </div>
       `;
     }
@@ -902,6 +1109,42 @@
 
       document.querySelectorAll("[data-wash-one]").forEach((btn) => {
         btn.addEventListener("click", () => quickWash(btn.dataset.washOne));
+      });
+
+      document.querySelectorAll("[data-laundry-filter]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.laundryFilter = btn.dataset.laundryFilter;
+          render();
+        });
+      });
+
+      const laundrySearch = $("#laundrySearchInput");
+      if (laundrySearch) {
+        laundrySearch.addEventListener("input", (event) => {
+          state.laundrySearch = event.target.value;
+          render();
+        });
+      }
+
+      document.querySelectorAll("[data-edit-laundry]").forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          openEditLaundryForm(btn.dataset.editLaundry);
+        });
+      });
+
+      document.querySelectorAll("[data-delete-laundry]").forEach((btn) => {
+        btn.addEventListener("click", (event) => {
+          event.stopPropagation();
+          deleteLaundry(btn.dataset.deleteLaundry);
+        });
+      });
+
+      document.querySelectorAll("[data-toggle-laundry-history]").forEach((btn) => {
+        btn.addEventListener("click", () => {
+          state.showLaundryHistory = !state.showLaundryHistory;
+          render();
+        });
       });
 
       document.querySelectorAll("[data-cloth-id]").forEach((card) => {
@@ -1337,6 +1580,9 @@
         ...CATEGORY_OPTIONS.filter((category) => state.clothes.some((cloth) => (cloth.category || "기타") === category)),
         "선택한 옷"
       ];
+      const ootdSeasonSet = new Set(SEASON_PRESETS);
+      state.clothes.forEach((cloth) => normalizeList(cloth.seasons || []).forEach((season) => ootdSeasonSet.add(season)));
+      const ootdSeasons = [...ootdSeasonSet].filter(Boolean);
 
       return `
         <form class="form" id="ootdForm">
@@ -1377,6 +1623,10 @@
               <div class="ootd-filter-scroll" id="ootdCategoryFilter">
                 ${ootdCategories.map((category, index) => `<button type="button" class="ootd-filter-chip ${index === 0 ? "active" : ""}" data-ootd-category="${escapeAttr(category)}">${escapeHtml(category)}</button>`).join("")}
               </div>
+              <div class="ootd-filter-label"><span>계절 필터</span><span>누르면 ON / 다시 누르면 OFF</span></div>
+              <div class="ootd-filter-scroll ootd-season-filter" id="ootdSeasonFilter">
+                ${ootdSeasons.map((season) => `<button type="button" class="ootd-filter-chip" data-ootd-season="${escapeAttr(season)}">${escapeHtml(season)}</button>`).join("")}
+              </div>
               <div class="ootd-search-row">
                 <input id="ootdPickSearch" class="ootd-pick-search" type="search" placeholder="옷 이름, 색상, 스타일 검색">
                 <button type="button" class="ootd-clear-btn" id="ootdClearPick">선택 해제</button>
@@ -1400,7 +1650,7 @@
                 ].join(" ");
 
                 return `
-                  <label class="pick" data-ootd-pick data-category="${escapeAttr(category)}" data-search="${escapeAttr(searchText.toLowerCase())}">
+                  <label class="pick" data-ootd-pick data-category="${escapeAttr(category)}" data-seasons="${escapeAttr(seasons.join("|").toLowerCase())}" data-search="${escapeAttr(searchText.toLowerCase())}">
                     <input type="checkbox" name="clothIds" value="${cloth.id}" ${selectedIds.has(cloth.id) ? "checked" : ""}>
                     <span class="pick-inner">
                       <span class="pick-photo">${cloth.photoUrl ? `<img src="${escapeAttr(cloth.photoUrl)}" alt="${escapeAttr(cloth.name)}">` : escapeHtml(cloth.emoji || "👚")}</span>
@@ -1413,7 +1663,7 @@
                 `;
               }).join("")}
             </div>
-            <div class="tiny-help">상의/하의 같은 종류로 먼저 좁히고, 검색으로 색상이나 이름을 찾을 수 있어. 수정 저장하면 착용 횟수도 다시 계산돼.</div>
+            <div class="tiny-help">종류와 계절을 켜고 끄면서 좁혀볼 수 있어. 검색은 옷 이름, 색상, 계절, 스타일을 같이 찾아줘.</div>
           </div>
 
           <div class="form-section">
@@ -1537,10 +1787,12 @@
     function bindOOTDPickFilters(form) {
       const picks = [...form.querySelectorAll("[data-ootd-pick]")];
       const categoryButtons = [...form.querySelectorAll("[data-ootd-category]")];
+      const seasonButtons = [...form.querySelectorAll("[data-ootd-season]")];
       const searchInput = form.querySelector("#ootdPickSearch");
       const clearBtn = form.querySelector("#ootdClearPick");
       const summary = form.querySelector("#ootdPickSummary");
       let activeCategory = "전체";
+      const activeSeasons = new Set();
 
       const applyFilters = () => {
         const query = String(searchInput?.value || "").trim().toLowerCase();
@@ -1552,21 +1804,26 @@
           const checked = Boolean(checkbox?.checked);
           const category = pick.dataset.category || "기타";
           const searchable = pick.dataset.search || "";
+          const seasons = String(pick.dataset.seasons || "").split("|").filter(Boolean);
 
           if (checked) selectedCount += 1;
 
           const categoryOK =
             activeCategory === "전체" ||
             (activeCategory === "선택한 옷" ? checked : category === activeCategory);
+          const seasonOK =
+            activeSeasons.size === 0 ||
+            seasons.some((season) => activeSeasons.has(season));
           const searchOK = !query || searchable.includes(query);
-          const visible = categoryOK && searchOK;
+          const visible = categoryOK && searchOK && (activeCategory === "선택한 옷" || seasonOK);
 
           pick.classList.toggle("hidden-pick", !visible);
           if (visible) visibleCount += 1;
         });
 
         if (summary) {
-          summary.textContent = `${visibleCount}개 표시 · ${selectedCount}개 선택`;
+          const seasonText = activeSeasons.size ? ` · 계절 ${activeSeasons.size}개 ON` : "";
+          summary.textContent = `${visibleCount}개 표시 · ${selectedCount}개 선택${seasonText}`;
         }
       };
 
@@ -1574,6 +1831,23 @@
         button.addEventListener("click", () => {
           activeCategory = button.dataset.ootdCategory || "전체";
           categoryButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
+          applyFilters();
+        });
+      });
+
+      seasonButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          const season = String(button.dataset.ootdSeason || "").toLowerCase();
+          if (!season) return;
+
+          if (activeSeasons.has(season)) {
+            activeSeasons.delete(season);
+            button.classList.remove("active");
+          } else {
+            activeSeasons.add(season);
+            button.classList.add("active");
+          }
+
           applyFilters();
         });
       });
@@ -1613,36 +1887,73 @@
       }
     }
 
-    function openLaundryForm() {
-      $("#modalTitle").textContent = "세탁 기록";
+    function openLaundryForm(item = null) {
+      const isEdit = Boolean(item);
+      const selectedIds = new Set(item?.clothIds || []);
+      const defaultMode = isEdit ? "selected" : needWash().length ? "need" : "worn";
+      const filterOptions = [
+        ["need", "세탁 필요"],
+        ["worn", "입은 옷"],
+        ["all", "전체"],
+        ["selected", "선택한 옷"],
+        ...CATEGORY_OPTIONS.map((category) => [category, category])
+      ];
+
+      $("#modalTitle").textContent = isEdit ? "세탁 처리 수정" : "세탁 완료 처리";
       $("#modalBody").innerHTML = `
         <form class="form" id="laundryForm">
-          <div class="field"><label>날짜</label><input name="date" type="date" value="${today()}" required></div>
+          <div class="field"><label>날짜</label><input name="date" type="date" value="${escapeAttr(item?.date || today())}" required></div>
+
           <div class="field">
             <label>세탁한 옷 선택</label>
-            <div class="pick-grid">
-              ${state.clothes.map((item) => `
-                <label class="pick">
-                  <input type="checkbox" name="clothIds" value="${item.id}">
-                  <span class="pick-inner">
-                    <span class="pick-photo">${item.photoUrl ? `<img src="${escapeAttr(item.photoUrl)}" alt="${escapeAttr(item.name)}">` : escapeHtml(item.emoji || "👚")}</span>
-                    <span class="pick-text"><b>${escapeHtml(item.name)}</b><small>${item.wearCount || 0}회 착용 · ${escapeHtml(item.status || "")}</small></span>
-                  </span>
-                </label>
-              `).join("")}
+            <div class="ootd-picker-tools">
+              <div class="ootd-filter-scroll" id="laundryPickMode">
+                ${filterOptions.map(([key, label]) => `<button type="button" class="ootd-filter-chip ${key === defaultMode ? "active" : ""}" data-laundry-mode="${escapeAttr(key)}">${escapeHtml(label)}</button>`).join("")}
+              </div>
+              <div class="ootd-search-row">
+                <input id="laundryPickSearch" class="ootd-pick-search" type="search" placeholder="옷 이름, 색상, 스타일 검색">
+                <button type="button" class="ootd-clear-btn" id="laundryClearPick">선택 해제</button>
+              </div>
             </div>
+            <div class="pick-grid" id="laundryPickGrid">
+              ${state.clothes.map((cloth) => {
+                const colors = normalizeList(cloth.colors || []);
+                const seasons = normalizeList(cloth.seasons || []);
+                const styles = normalizeList(cloth.styles || []);
+                const category = cloth.category || "기타";
+                const bucket = laundryBucket(cloth);
+                const searchText = [cloth.name, category, cloth.detail, ...colors, ...seasons, ...styles, cloth.status].join(" ").toLowerCase();
+                return `
+                  <label class="pick" data-laundry-pick data-category="${escapeAttr(category)}" data-bucket="${escapeAttr(bucket)}" data-search="${escapeAttr(searchText)}">
+                    <input type="checkbox" name="clothIds" value="${cloth.id}" ${selectedIds.has(cloth.id) ? "checked" : ""}>
+                    <span class="pick-inner">
+                      <span class="pick-photo">${cloth.photoUrl ? `<img src="${escapeAttr(cloth.photoUrl)}" alt="${escapeAttr(cloth.name)}">` : escapeHtml(cloth.emoji || "👚")}</span>
+                      <span class="pick-text"><b>${escapeHtml(cloth.name)}</b><small>${cloth.wearCount || 0}회 착용 · 기준 ${cloth.washLimit || "-"}회<br>${escapeHtml(cloth.status || "깨끗함")}</small></span>
+                    </span>
+                  </label>
+                `;
+              }).join("")}
+            </div>
+            <div class="tiny-help" id="laundryPickSummary">선택한 옷 0개</div>
           </div>
+
           <div class="field">
             <label>세탁 방식</label>
-            <select name="method"><option>세탁기</option><option>손세탁</option><option>드라이</option><option>스타일러</option><option>부분세탁</option><option>기타</option></select>
+            <select name="method">
+              ${["세탁기", "손세탁", "드라이", "스타일러", "부분세탁", "기타"].map((method) => `<option ${method === (item?.method || "세탁기") ? "selected" : ""}>${method}</option>`).join("")}
+            </select>
           </div>
-          <div class="field"><label>메모</label><textarea name="memo" placeholder="세탁망 사용, 단독세탁 등"></textarea></div>
-          <button class="btn" type="submit">세탁 완료 저장</button>
+          <div class="field"><label>메모</label><textarea name="memo" placeholder="세탁망 사용, 단독세탁 등">${escapeHtml(item?.memo || "")}</textarea></div>
+          <button class="btn" type="submit">${isEdit ? "세탁 처리 수정" : "선택한 옷 깨끗함 처리"}</button>
+          ${isEdit ? `<button class="btn danger" id="deleteLaundryInForm" type="button">세탁 기록 삭제</button>` : ""}
         </form>
       `;
       $("#modal").classList.add("show");
 
-      $("#laundryForm").addEventListener("submit", async (e) => {
+      const form = $("#laundryForm");
+      bindLaundryPickFilters(form, defaultMode);
+
+      form.addEventListener("submit", async (e) => {
         e.preventDefault();
         const fd = new FormData(e.target);
         const clothIds = fd.getAll("clothIds");
@@ -1653,24 +1964,112 @@
         }
 
         try {
-          await api("/api/laundry", {
-            method: "POST",
+          await api(isEdit ? `/api/laundry/${item.id}` : "/api/laundry", {
+            method: isEdit ? "PATCH" : "POST",
             body: {
               date: fd.get("date"),
               clothIds,
               method: fd.get("method"),
+              status: "세탁 완료",
               memo: fd.get("memo"),
             },
           });
 
           closeModal();
-          toast("세탁 완료로 저장했어.");
+          toast(isEdit ? "세탁 처리를 수정했어." : "선택한 옷을 깨끗함으로 처리했어.");
           await loadAll();
           setTab("laundry");
         } catch (error) {
           toast(error.message);
         }
       });
+
+      const deleteBtn = $("#deleteLaundryInForm");
+      if (deleteBtn) {
+        deleteBtn.addEventListener("click", () => deleteLaundry(item.id));
+      }
+    }
+
+    function bindLaundryPickFilters(form, defaultMode = "need") {
+      const picks = [...form.querySelectorAll("[data-laundry-pick]")];
+      const modeButtons = [...form.querySelectorAll("[data-laundry-mode]")];
+      const searchInput = form.querySelector("#laundryPickSearch");
+      const clearBtn = form.querySelector("#laundryClearPick");
+      const summary = form.querySelector("#laundryPickSummary");
+      let activeMode = defaultMode;
+
+      const applyFilters = () => {
+        const query = String(searchInput?.value || "").trim().toLowerCase();
+        let visibleCount = 0;
+        let selectedCount = 0;
+
+        picks.forEach((pick) => {
+          const checkbox = pick.querySelector('input[name="clothIds"]');
+          const checked = Boolean(checkbox?.checked);
+          const category = pick.dataset.category || "기타";
+          const bucket = pick.dataset.bucket || "clean";
+          const searchable = pick.dataset.search || "";
+
+          if (checked) selectedCount += 1;
+
+          const modeOK =
+            activeMode === "all" ||
+            activeMode === bucket ||
+            activeMode === category ||
+            (activeMode === "selected" && checked);
+          const searchOK = !query || searchable.includes(query);
+          const visible = modeOK && searchOK;
+
+          pick.classList.toggle("hidden-pick", !visible);
+          if (visible) visibleCount += 1;
+        });
+
+        if (summary) summary.textContent = `${visibleCount}개 표시 · ${selectedCount}개 선택`;
+      };
+
+      modeButtons.forEach((button) => {
+        button.addEventListener("click", () => {
+          activeMode = button.dataset.laundryMode || "all";
+          modeButtons.forEach((btn) => btn.classList.toggle("active", btn === button));
+          applyFilters();
+        });
+      });
+
+      searchInput?.addEventListener("input", applyFilters);
+      picks.forEach((pick) => pick.querySelector('input[name="clothIds"]')?.addEventListener("change", applyFilters));
+      clearBtn?.addEventListener("click", () => {
+        picks.forEach((pick) => {
+          const checkbox = pick.querySelector('input[name="clothIds"]');
+          if (checkbox) checkbox.checked = false;
+        });
+        applyFilters();
+      });
+
+      applyFilters();
+    }
+
+    function openEditLaundryForm(id) {
+      const item = state.laundries.find((laundry) => laundry.id === id);
+      if (!item) {
+        toast("세탁 기록을 찾을 수 없어.");
+        return;
+      }
+      openLaundryForm(item);
+    }
+
+    async function deleteLaundry(id) {
+      const ok = confirm("이 세탁 기록을 삭제할까? 옷의 세탁일과 착용 횟수도 다시 계산돼.");
+      if (!ok) return;
+
+      try {
+        await api(`/api/laundry/${id}`, { method: "DELETE" });
+        closeModal();
+        toast("세탁 기록을 삭제했어.");
+        await loadAll();
+        setTab("laundry");
+      } catch (error) {
+        toast(error.message);
+      }
     }
 
     async function quickWash(id) {
@@ -1681,10 +2080,10 @@
             date: today(),
             clothIds: [id],
             method: "세탁기",
-            memo: "빠른 세탁 완료",
+            memo: "깨끗함 처리",
           },
         });
-        toast("세탁 완료로 바꿨어.");
+        toast("깨끗함으로 처리했어.");
         await loadAll();
       } catch (error) {
         toast(error.message);
@@ -1745,6 +2144,22 @@
         event.preventDefault();
         event.stopPropagation();
         quickWash(washBtn.dataset.washOne);
+        return;
+      }
+
+      const editLaundryBtn = target.closest?.("[data-edit-laundry]");
+      if (editLaundryBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        openEditLaundryForm(editLaundryBtn.dataset.editLaundry);
+        return;
+      }
+
+      const deleteLaundryBtn = target.closest?.("[data-delete-laundry]");
+      if (deleteLaundryBtn) {
+        event.preventDefault();
+        event.stopPropagation();
+        deleteLaundry(deleteLaundryBtn.dataset.deleteLaundry);
         return;
       }
 
